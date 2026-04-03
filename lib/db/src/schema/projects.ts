@@ -12,6 +12,7 @@ export const projectsTable = pgTable("projects", {
   longitude: real("longitude"),
   address: text("address"),
   siteArea: real("site_area"),
+  numFloors: integer("num_floors"),
   siteAnalysis: jsonb("site_analysis"),
   questionnaire: jsonb("questionnaire"),
   program: jsonb("program"),

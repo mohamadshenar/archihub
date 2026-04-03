@@ -29,6 +29,12 @@ export const ListProjectsResponseItem = zod.object({
     "industrial",
     "mixed_use",
     "landscape",
+    "tower_commercial",
+    "tower_residential",
+    "hospitality",
+    "civic",
+    "healthcare",
+    "education",
   ]),
   status: zod.enum([
     "draft",
@@ -83,6 +89,7 @@ export const ListProjectsResponseItem = zod.object({
       styleDirection: zod.string(),
     })
     .nullish(),
+  numFloors: zod.number().int().nullish(),
   imageCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
@@ -102,7 +109,14 @@ export const CreateProjectBody = zod.object({
     "industrial",
     "mixed_use",
     "landscape",
+    "tower_commercial",
+    "tower_residential",
+    "hospitality",
+    "civic",
+    "healthcare",
+    "education",
   ]),
+  numFloors: zod.number().int().optional(),
 });
 
 /**
@@ -123,6 +137,12 @@ export const GetProjectResponse = zod.object({
     "industrial",
     "mixed_use",
     "landscape",
+    "tower_commercial",
+    "tower_residential",
+    "hospitality",
+    "civic",
+    "healthcare",
+    "education",
   ]),
   status: zod.enum([
     "draft",
@@ -177,6 +197,7 @@ export const GetProjectResponse = zod.object({
       styleDirection: zod.string(),
     })
     .nullish(),
+  numFloors: zod.number().int().nullish(),
   imageCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
@@ -200,6 +221,12 @@ export const UpdateProjectBody = zod.object({
       "industrial",
       "mixed_use",
       "landscape",
+      "tower_commercial",
+      "tower_residential",
+      "hospitality",
+      "civic",
+      "healthcare",
+      "education",
     ])
     .optional(),
 });
@@ -215,6 +242,12 @@ export const UpdateProjectResponse = zod.object({
     "industrial",
     "mixed_use",
     "landscape",
+    "tower_commercial",
+    "tower_residential",
+    "hospitality",
+    "civic",
+    "healthcare",
+    "education",
   ]),
   status: zod.enum([
     "draft",
@@ -269,6 +302,7 @@ export const UpdateProjectResponse = zod.object({
       styleDirection: zod.string(),
     })
     .nullish(),
+  numFloors: zod.number().int().nullish(),
   imageCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
@@ -306,6 +340,12 @@ export const UpdateProjectSiteResponse = zod.object({
     "industrial",
     "mixed_use",
     "landscape",
+    "tower_commercial",
+    "tower_residential",
+    "hospitality",
+    "civic",
+    "healthcare",
+    "education",
   ]),
   status: zod.enum([
     "draft",
@@ -360,6 +400,7 @@ export const UpdateProjectSiteResponse = zod.object({
       styleDirection: zod.string(),
     })
     .nullish(),
+  numFloors: zod.number().int().nullish(),
   imageCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
@@ -387,6 +428,12 @@ export const UpdateProjectQuestionnaireResponse = zod.object({
     "industrial",
     "mixed_use",
     "landscape",
+    "tower_commercial",
+    "tower_residential",
+    "hospitality",
+    "civic",
+    "healthcare",
+    "education",
   ]),
   status: zod.enum([
     "draft",
@@ -441,6 +488,7 @@ export const UpdateProjectQuestionnaireResponse = zod.object({
       styleDirection: zod.string(),
     })
     .nullish(),
+  numFloors: zod.number().int().nullish(),
   imageCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
@@ -550,6 +598,12 @@ export const GetRecentProjectsResponseItem = zod.object({
     "industrial",
     "mixed_use",
     "landscape",
+    "tower_commercial",
+    "tower_residential",
+    "hospitality",
+    "civic",
+    "healthcare",
+    "education",
   ]),
   status: zod.enum([
     "draft",
@@ -604,6 +658,7 @@ export const GetRecentProjectsResponseItem = zod.object({
       styleDirection: zod.string(),
     })
     .nullish(),
+  numFloors: zod.number().int().nullish(),
   imageCount: zod.number(),
   createdAt: zod.string(),
   updatedAt: zod.string(),

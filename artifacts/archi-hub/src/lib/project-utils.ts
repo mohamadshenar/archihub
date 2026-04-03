@@ -12,7 +12,7 @@ export const getStatusLabel = (status: ProjectStatus) => {
   }
 };
 
-export const getTypeLabel = (type: ProjectProjectType) => {
+export const getTypeLabel = (type: ProjectProjectType | string) => {
   switch (type) {
     case ProjectProjectType.residential: return "Residential";
     case ProjectProjectType.commercial: return "Commercial";
@@ -20,6 +20,12 @@ export const getTypeLabel = (type: ProjectProjectType) => {
     case ProjectProjectType.industrial: return "Industrial";
     case ProjectProjectType.mixed_use: return "Mixed Use";
     case ProjectProjectType.landscape: return "Landscape";
+    case ProjectProjectType.tower_commercial: return "Tower – Commercial";
+    case ProjectProjectType.tower_residential: return "Tower – Residential";
+    case ProjectProjectType.hospitality: return "Hospitality / Hotel";
+    case ProjectProjectType.civic: return "Civic & Institutional";
+    case ProjectProjectType.healthcare: return "Healthcare";
+    case ProjectProjectType.education: return "Education";
     default: return type;
   }
 };

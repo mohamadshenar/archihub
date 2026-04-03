@@ -16,4 +16,10 @@ export const CreateProjectBodyProjectType = {
   industrial: "industrial",
   mixed_use: "mixed_use",
   landscape: "landscape",
+  tower_commercial: "tower_commercial",
+  tower_residential: "tower_residential",
+  hospitality: "hospitality",
+  civic: "civic",
+  healthcare: "healthcare",
+  education: "education",
 } as const;

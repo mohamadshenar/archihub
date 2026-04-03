@@ -11,4 +11,5 @@ export interface CreateProjectBody {
   name: string;
   description?: string;
   projectType: CreateProjectBodyProjectType;
+  numFloors?: number;
 }

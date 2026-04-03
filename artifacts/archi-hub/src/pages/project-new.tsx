@@ -21,6 +21,7 @@ const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   description: z.string().optional(),
   projectType: z.nativeEnum(CreateProjectBodyProjectType),
+  numFloors: z.coerce.number().int().positive().optional().or(z.literal("")),
 });
 
 export default function NewProject() {
@@ -34,12 +35,14 @@ export default function NewProject() {
       name: "",
       description: "",
       projectType: CreateProjectBodyProjectType.residential,
+      numFloors: "",
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    const numFloors = values.numFloors === "" ? undefined : Number(values.numFloors);
     createProject(
-      { data: values },
+      { data: { name: values.name, description: values.description, projectType: values.projectType, numFloors } },
       {
         onSuccess: (project) => {
           queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
@@ -85,31 +88,59 @@ export default function NewProject() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="projectType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Typology</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="projectType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Typology</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a project type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={CreateProjectBodyProjectType.residential}>Residential</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.commercial}>Commercial</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.tower_commercial}>Tower – Commercial</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.tower_residential}>Tower – Residential</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.cultural}>Cultural</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.industrial}>Industrial</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.mixed_use}>Mixed Use</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.landscape}>Landscape</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.hospitality}>Hospitality / Hotel</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.civic}>Civic & Institutional</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.healthcare}>Healthcare</SelectItem>
+                          <SelectItem value={CreateProjectBodyProjectType.education}>Education</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numFloors"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Floors</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a project type" />
-                        </SelectTrigger>
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="e.g. 42"
+                          {...field}
+                          value={field.value ?? ""}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value={CreateProjectBodyProjectType.residential}>Residential</SelectItem>
-                        <SelectItem value={CreateProjectBodyProjectType.commercial}>Commercial</SelectItem>
-                        <SelectItem value={CreateProjectBodyProjectType.cultural}>Cultural</SelectItem>
-                        <SelectItem value={CreateProjectBodyProjectType.industrial}>Industrial</SelectItem>
-                        <SelectItem value={CreateProjectBodyProjectType.mixed_use}>Mixed Use</SelectItem>
-                        <SelectItem value={CreateProjectBodyProjectType.landscape}>Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}

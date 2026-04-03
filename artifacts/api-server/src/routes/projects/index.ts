@@ -38,6 +38,7 @@ function formatProject(p: typeof projectsTable.$inferSelect, imageCount = 0) {
     longitude: p.longitude ?? undefined,
     address: p.address ?? undefined,
     siteArea: p.siteArea ?? undefined,
+    numFloors: p.numFloors ?? undefined,
     siteAnalysis: p.siteAnalysis ?? undefined,
     questionnaire: p.questionnaire ?? undefined,
     program: p.program ?? undefined,
@@ -74,6 +75,7 @@ router.post("/projects", async (req, res): Promise<void> => {
       name: parsed.data.name,
       description: parsed.data.description,
       projectType: parsed.data.projectType,
+      numFloors: parsed.data.numFloors,
       status: "draft",
     })
     .returning();
