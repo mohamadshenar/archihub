@@ -996,11 +996,12 @@ router.post("/projects/:id/exterior", async (req, res) => {
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
 
   const meta = (project.metadata as Record<string, unknown>) ?? {};
-  const concepts = (meta.concepts as { title: string; narrative: string; tags: string[]; materials?: string[]; formalStrategy?: string }[] | undefined) ?? [];
+  const concepts = (meta.concepts as { title: string; narrative: string; tags: string[]; materials?: string[]; formalStrategy?: string; palette?: string[] }[] | undefined) ?? [];
   const selectedConceptIdx = (meta.selectedConceptIdx as number | undefined) ?? 0;
   const selectedConcept = concepts[selectedConceptIdx] ?? concepts[0];
   const massingOptions = (meta.massingOptions as { formType: string; siteCoverage: number; floors: number; title: string }[] | undefined) ?? [];
   const selectedMassing = massingOptions[0];
+  const conceptPalette = selectedConcept?.palette ?? [];
 
   // Read structured brief data from metadata (saved by useProjectMission "brief" section)
   const briefData = (meta.brief as {
@@ -1044,7 +1045,12 @@ ${selectedMassing ? `Massing: ${selectedMassing.title} (${selectedMassing.formTy
 ${selectedConcept ? `Design Concept: "${selectedConcept.title}" — ${selectedConcept.narrative}
 Concept Style Tags: ${(selectedConcept.tags ?? []).join(", ")}
 Concept Materials: ${(selectedConcept.materials ?? []).join(", ") || "Not defined"}
-Formal Strategy: ${selectedConcept.formalStrategy ?? ""}` : ""}
+Formal Strategy: ${selectedConcept.formalStrategy ?? ""}
+Concept Colour Palette: ${conceptPalette.length > 0 ? conceptPalette.join(", ") : "Not defined"}` : ""}
+
+${conceptPalette.length > 0 ? `═══ COLOUR PALETTE INSTRUCTION (MANDATORY) ═══
+The concept colour palette is: ${conceptPalette.join(", ")}
+Your "colorPalette" array MUST be derived from these exact colours. You may adjust saturation/lightness to suit real building materials, but the hue family of each swatch must remain faithful to the concept palette. Do NOT invent unrelated colours.` : ""}
 
 Generate a facade that is TRUE to the selected styles above. Return JSON:
 {
@@ -1056,7 +1062,7 @@ Generate a facade that is TRUE to the selected styles above. Return JSON:
   "rValue": "R-3.8",
   "shadingStrategy": "...",
   "openingPattern": "...",
-  "colorPalette": ["#hex1", "#hex2", "#hex3", "#hex4"],
+  "colorPalette": ${conceptPalette.length > 0 ? `["derived from ${conceptPalette[0]}", "derived from ${conceptPalette[1] ?? conceptPalette[0]}", "derived from ${conceptPalette[2] ?? conceptPalette[0]}", "derived from ${conceptPalette[3] ?? conceptPalette[0]}"]` : '["#hex1", "#hex2", "#hex3", "#hex4"]'},
   "styleDirection": "...",
   "recommendations": ["recommendation 1", "recommendation 2", "recommendation 3"],
   "northFacade": "...",
@@ -1066,7 +1072,8 @@ Generate a facade that is TRUE to the selected styles above. Return JSON:
 }
 
 Recommendations should be specific, actionable facade strategies.
-WWR should be 25–65%. Color palette should be 4 realistic hex codes reflecting the material palette.
+WWR should be 25–65%.
+colorPalette must be 4 valid hex codes${conceptPalette.length > 0 ? ` derived from the concept palette [${conceptPalette.join(", ")}]` : " reflecting the material palette"}.
 styleDirection must explicitly reference the selected styles (e.g. "Minimal glass curtain wall" not "Brutalist concrete mass").` },
     ],
   });
