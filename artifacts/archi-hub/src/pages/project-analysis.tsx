@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, BrainCircuit, Wind, Sun, Mountain, Leaf, AlertTriangle, Lightbulb } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Wind, Sun, Mountain, Leaf, AlertTriangle, Lightbulb, Building2, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
@@ -229,5 +229,3 @@ export default function ProjectAnalysis() {
   );
 }
 
-// Need MapPin import for the empty state
-import { MapPin, Building2 as Building2Icon } from "lucide-react";
