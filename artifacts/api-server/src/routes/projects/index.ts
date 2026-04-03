@@ -673,6 +673,104 @@ Rules:
   res.json({ ...zoning, _entry: historyEntry });
 });
 
+// ─── Massing Generator ────────────────────────────────────────────────────────
+
+router.post("/projects/:id/massing", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const program = project.program as Record<string, unknown> | null;
+  const floors = (program?.floors as { functionName: string; areaPerFloor: number; floorRange: string }[] | undefined) ?? [];
+
+  // Calculate total area from program
+  const totalArea = floors.reduce((sum, f) => {
+    const range = f.floorRange ?? "";
+    let count = 1;
+    if (range.includes("-")) {
+      const parseNum = (s: string) => {
+        s = s.trim().toUpperCase();
+        if (s === "G") return 0;
+        if (s.startsWith("B")) return -(parseInt(s.slice(1)) || 1);
+        return parseInt(s) || 0;
+      };
+      const parts = range.split("-");
+      count = Math.abs(parseNum(parts[1]) - parseNum(parts[0])) + 1;
+    }
+    return sum + (f.areaPerFloor ?? 0) * count;
+  }, 0);
+
+  const numFloors = (project as Record<string, unknown>).numFloors as number | null;
+  const brief = project.clientBrief ?? "";
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 3000,
+    messages: [
+      { role: "system", content: "You are an expert architectural designer specialising in massing studies and building form optimisation. Return ONLY valid JSON, no markdown." },
+      { role: "user", content: `Generate 3 distinct volumetric massing options for a ${project.projectType} building named "${project.name}".
+
+Project data:
+- Total program area: ~${Math.round(totalArea || 5000)} m²
+- Number of floors: ${numFloors ?? "Not specified"}
+- Brief: ${brief || "Not provided"}
+
+Each option must explore a genuinely different formal strategy (e.g. tower, podium+tower, courtyard, split bar, stepped terrace, etc.).
+
+Return JSON:
+{
+  "options": [
+    {
+      "key": "A",
+      "title": "Short form name (e.g. Vertical Tower)",
+      "formType": "tower|podium-tower|courtyard|bar|stepped|split|L-shape|U-shape",
+      "description": "One sentence describing the volumetric approach.",
+      "gfa": 4200,
+      "floors": 8,
+      "siteCoverage": 45,
+      "height": 32,
+      "far": 2.8,
+      "setbackFront": 6,
+      "setbackSide": 4,
+      "pros": ["Pro 1", "Pro 2"],
+      "cons": ["Con 1"]
+    }
+  ]
+}
+
+Rules:
+- gfa in m² (integer)
+- floors: integer
+- siteCoverage: percentage integer (30–80)
+- height: metres integer
+- far: floor area ratio to 1 decimal
+- setbacks in metres
+- Make options genuinely different — vary coverage, height, floor count significantly` },
+    ],
+  });
+
+  let options: unknown[];
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    const parsed = JSON.parse(content) as { options: unknown[] };
+    options = parsed.options ?? [];
+  } catch (err) {
+    console.error("Massing JSON parse failed:", err);
+    res.status(500).json({ error: "Failed to parse AI response" }); return;
+  }
+
+  const existing = await db.select({ metadata: projectsTable.metadata }).from(projectsTable).where(eq(projectsTable.id, id));
+  const currentMeta = (existing[0]?.metadata as Record<string, unknown>) ?? {};
+  await db.update(projectsTable).set({ metadata: { ...currentMeta, massingOptions: options } }).where(eq(projectsTable.id, id));
+
+  res.json({ options });
+});
+
 // ─── Concept Generation ───────────────────────────────────────────────────────
 
 router.post("/projects/:id/concepts", async (req, res): Promise<void> => {
