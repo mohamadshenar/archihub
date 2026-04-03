@@ -997,7 +997,12 @@ router.post("/projects/:id/exterior", async (req, res) => {
 
   const meta = (project.metadata as Record<string, unknown>) ?? {};
   const concepts = (meta.concepts as { title: string; narrative: string; tags: string[]; materials?: string[]; formalStrategy?: string; palette?: string[] }[] | undefined) ?? [];
-  const selectedConceptIdx = (meta.selectedConceptIdx as number | undefined) ?? 0;
+  // Prefer idx from request body (frontend always sends it from localStorage),
+  // then fall back to what's in metadata, then default to 0.
+  const bodyIdx = typeof (req.body as Record<string, unknown>).selectedConceptIdx === "number"
+    ? (req.body as Record<string, unknown>).selectedConceptIdx as number
+    : undefined;
+  const selectedConceptIdx = bodyIdx ?? (meta.selectedConceptIdx as number | undefined) ?? 0;
   const selectedConcept = concepts[selectedConceptIdx] ?? concepts[0];
   const massingOptions = (meta.massingOptions as { formType: string; siteCoverage: number; floors: number; title: string }[] | undefined) ?? [];
   const selectedMassing = massingOptions[0];

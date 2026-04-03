@@ -114,21 +114,21 @@ export default function ProjectExterior() {
 
   const loadMeta = useCallback(async () => {
     if (!projectId) return;
-    const res = await fetch(`${BASE}/api/projects/${projectId}`);
+    // bypass cache to always read the latest saved palette / selectedConceptIdx
+    const res = await fetch(`${BASE}/api/projects/${projectId}/metadata`, { cache: "no-store" });
     if (!res.ok) return;
-    const data = await res.json() as {
-      metadata?: {
-        exterior?:          FacadeDesign;
-        brief?:             BriefData;
-        concepts?:          ConceptData[];
-        selectedConceptIdx?: number;
-      };
+    const meta = await res.json() as {
+      exterior?:          FacadeDesign;
+      brief?:             BriefData;
+      concepts?:          ConceptData[];
+      selectedConceptIdx?: number;
     };
-    const meta = data.metadata ?? {};
     if (meta.exterior)  setFacade(meta.exterior);
     if (meta.brief)     setBrief(meta.brief);
     if (meta.concepts?.length) {
-      const idx = meta.selectedConceptIdx ?? 0;
+      // Prefer metadata idx → then localStorage → then 0
+      const storedLocal = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
+      const idx = meta.selectedConceptIdx ?? (storedLocal !== null ? parseInt(storedLocal) || 0 : 0);
       setConcept(meta.concepts[idx] ?? meta.concepts[0]);
     }
   }, [projectId]);
@@ -138,7 +138,15 @@ export default function ProjectExterior() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const res = await fetch(`${BASE}/api/projects/${projectId}/exterior`, { method: "POST" });
+      // Always pass the currently-selected concept index so the API uses the right palette
+      const storedLocal = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
+      const selectedConceptIdx = storedLocal !== null ? parseInt(storedLocal) || 0 : 0;
+
+      const res = await fetch(`${BASE}/api/projects/${projectId}/exterior`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedConceptIdx }),
+      });
       if (!res.ok) throw new Error("Failed");
       const data = await res.json() as { exterior: FacadeDesign };
       setFacade(data.exterior);
