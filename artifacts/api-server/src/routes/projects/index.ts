@@ -1134,4 +1134,99 @@ router.patch("/projects/:id/exterior/apply", async (req, res) => {
   res.json({ success: true, appliedAt: exterior.appliedAt });
 });
 
+// ─── POST /projects/:id/interior — AI Interior Design ────────────────────────
+router.post("/projects/:id/interior", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const concepts = (meta.concepts as { title: string; narrative: string; tags: string[]; materials?: string[]; palette?: string[] }[] | undefined) ?? [];
+  const bodyIdx = typeof (req.body as Record<string, unknown>).selectedConceptIdx === "number"
+    ? (req.body as Record<string, unknown>).selectedConceptIdx as number : undefined;
+  const selectedConceptIdx = bodyIdx ?? (meta.selectedConceptIdx as number | undefined) ?? 0;
+  const selectedConcept = concepts[selectedConceptIdx] ?? concepts[0];
+  const conceptPalette = selectedConcept?.palette ?? [];
+
+  const briefData = (meta.brief as { styles?: string[]; mustHave?: string; avoid?: string; budgetPriority?: number } | undefined) ?? {};
+  const selectedStyles = briefData.styles ?? [];
+  const ALL_STYLES = ["Modern", "Minimal", "Industrial", "Organic", "Parametric", "Classical", "Brutalist", "Tropical"];
+  const excludedStyles = ALL_STYLES.filter(s => !selectedStyles.includes(s));
+
+  const selectedStyle = (req.body as Record<string, unknown>).selectedStyle as string | undefined ?? "Contemporary";
+  const spaces = ["lobby", "workspace", "exhibition", "cafe"];
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 3000,
+    messages: [
+      { role: "system", content: "You are a specialist interior architect. Return ONLY valid JSON, no markdown. Follow style preferences strictly." },
+      { role: "user", content: `Generate a complete interior design specification for a ${project.projectType} building.
+
+Project: ${project.name}
+Selected Interior Style: "${selectedStyle}"
+Design Concept: ${selectedConcept ? `"${selectedConcept.title}" — ${selectedConcept.narrative}` : "Not defined"}
+Concept Colour Palette: ${conceptPalette.length > 0 ? conceptPalette.join(", ") : "Not defined"}
+
+CLIENT STYLE PREFERENCES:
+SELECTED: ${selectedStyles.length > 0 ? selectedStyles.join(", ") : "Contemporary"}
+EXCLUDED: ${excludedStyles.length > 0 ? excludedStyles.join(", ") : "None"}
+
+Generate specifications for 4 spaces. Return JSON:
+{
+  "selectedStyle": "${selectedStyle}",
+  "styleDescription": "...",
+  "colorPalette": ${conceptPalette.length > 0 ? JSON.stringify(conceptPalette.slice(0, 5)) : '["#hex1","#hex2","#hex3","#hex4","#hex5"]'},
+  "spaces": {
+    "lobby": {
+      "lightingMood": "...",
+      "lightingTemp": "...",
+      "primaryFinish": "...",
+      "secondaryFinish": "...",
+      "flooringMaterial": "...",
+      "ceilingTreatment": "...",
+      "seating": "...",
+      "acoustics": "...",
+      "keyFeature": "..."
+    },
+    "workspace": { "lightingMood": "...", "lightingTemp": "...", "primaryFinish": "...", "secondaryFinish": "...", "flooringMaterial": "...", "ceilingTreatment": "...", "seating": "...", "acoustics": "...", "keyFeature": "..." },
+    "exhibition": { "lightingMood": "...", "lightingTemp": "...", "primaryFinish": "...", "secondaryFinish": "...", "flooringMaterial": "...", "ceilingTreatment": "...", "seating": "...", "acoustics": "...", "keyFeature": "..." },
+    "cafe": { "lightingMood": "...", "lightingTemp": "...", "primaryFinish": "...", "secondaryFinish": "...", "flooringMaterial": "...", "ceilingTreatment": "...", "seating": "...", "acoustics": "...", "keyFeature": "..." }
+  },
+  "materialPalette": [
+    { "name": "...", "role": "primary", "description": "..." },
+    { "name": "...", "role": "secondary", "description": "..." },
+    { "name": "...", "role": "accent", "description": "..." }
+  ],
+  "ffStrategy": "...",
+  "sustainabilityNotes": "..."
+}
+colorPalette must be ${conceptPalette.length > 0 ? `these exact hex codes: ${conceptPalette.slice(0, 5).join(", ")}` : "5 hex codes matching the interior style"}.` }
+    ],
+  });
+
+  let interior: Record<string, unknown>;
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    interior = JSON.parse(content) as Record<string, unknown>;
+  } catch (err) {
+    console.error("Interior JSON parse failed:", err);
+    res.status(500).json({ error: "Failed to parse AI response" }); return;
+  }
+
+  // Hard-lock palette to concept palette
+  if (conceptPalette.length > 0) interior.colorPalette = conceptPalette.slice(0, 5);
+  interior.generatedAt = new Date().toISOString();
+  interior.selectedStyle = selectedStyle;
+
+  const updatedMeta = { ...meta, interior };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+  res.json({ interior });
+});
+
 export default router;
