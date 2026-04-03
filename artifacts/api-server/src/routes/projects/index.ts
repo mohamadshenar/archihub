@@ -564,6 +564,104 @@ Generate ALL floors from the bottom to top. Do not skip any floor or range.`,
   res.json(updated.program);
 });
 
+// POST /projects/:id/zoning — AI-generated adjacency + zoning from the program
+router.post("/projects/:id/zoning", async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const program = project.program as Record<string, unknown> | null;
+  const floors = (program?.floors as Array<{ floorRange: string; functionName: string; areaPerFloor: number }>) ?? [];
+
+  // Aggregate unique functions with total area
+  const fnMap = new Map<string, number>();
+  for (const f of floors) {
+    const range = f.floorRange ?? "";
+    let count = 1;
+    if (range.includes("-")) {
+      const parseNum = (s: string) => {
+        s = s.trim().toUpperCase();
+        if (s === "G") return 0;
+        if (s.startsWith("B")) return -(parseInt(s.slice(1)) || 1);
+        return parseInt(s) || 0;
+      };
+      const parts = range.split("-");
+      count = Math.abs(parseNum(parts[1]) - parseNum(parts[0])) + 1;
+    }
+    const prev = fnMap.get(f.functionName) ?? 0;
+    fnMap.set(f.functionName, prev + (f.areaPerFloor ?? 0) * count);
+  }
+
+  const functions = Array.from(fnMap.entries()).map(([name, totalArea]) => ({ name, totalArea }));
+
+  if (functions.length === 0) {
+    res.json({ nodes: [], edges: [] });
+    return;
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 4000,
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert architect. Classify building functions into zones and generate a spatial adjacency matrix. Return ONLY valid JSON.",
+      },
+      {
+        role: "user",
+        content: `For a ${project.projectType} building named "${project.name}", classify each function and generate adjacency relationships.
+
+Functions (with total area sqm):
+${functions.map(f => `- ${f.name}: ${f.totalArea} sqm`).join("\n")}
+
+Zone types:
+- "public": lobbies, retail, cafes, galleries, reception, entrance, atrium
+- "semi-public": meeting rooms, lounges, amenity floors, restaurants, co-working
+- "private": offices, residential, apartments, hotel rooms, suites, penthouses
+- "service": parking, MEP, loading, plant rooms, storage, back-of-house
+
+Return JSON:
+{
+  "nodes": [
+    { "id": "function name exactly as given", "zone": "public|semi-public|private|service", "totalArea": 5000 }
+  ],
+  "edges": [
+    { "from": "function name", "to": "function name", "strength": "Strong|Medium|Avoid" }
+  ]
+}
+
+Rules:
+- Include ALL functions above as nodes
+- Generate edges for EVERY pair (don't skip any)
+- Use "Strong" for highly adjacent zones (e.g. lobby↔retail, lobby↔lift core)
+- Use "Avoid" for incompatible zones (e.g. parking↔penthouse, service↔public lobby)
+- Use "Medium" for acceptable but not ideal adjacencies`,
+      },
+    ],
+  });
+
+  let zoning: Record<string, unknown>;
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb > 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    zoning = JSON.parse(content);
+  } catch (err) {
+    console.error("Zoning JSON parse failed:", err);
+    zoning = { nodes: functions.map(f => ({ id: f.name, zone: "semi-public", totalArea: f.totalArea })), edges: [] };
+  }
+
+  // Save to metadata
+  const existing = await db.select({ metadata: projectsTable.metadata }).from(projectsTable).where(eq(projectsTable.id, id));
+  const currentMeta = (existing[0]?.metadata as Record<string, unknown>) ?? {};
+  await db.update(projectsTable).set({ metadata: { ...currentMeta, zoning } }).where(eq(projectsTable.id, id));
+
+  res.json(zoning);
+});
+
 router.get("/projects/:id/images", async (req, res): Promise<void> => {
   const params = GetProjectImagesParams.safeParse(req.params);
   if (!params.success) {
