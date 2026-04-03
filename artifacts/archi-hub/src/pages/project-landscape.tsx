@@ -11,10 +11,17 @@ export default function ProjectLandscape() {
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
 
-  const handleAction = () => {
+  const handleGenerate = () => {
     toast({
-      title: "Agent Active",
-      description: "Generating landscape integration..."
+      title: "Landscape Agent Active",
+      description: "Generating site integration and planting strategies..."
+    });
+  };
+
+  const handleExport = () => {
+    toast({
+      title: "Exporting Spec",
+      description: "Packaging landscape specification and planting schedule for download..."
     });
   };
 
@@ -26,11 +33,11 @@ export default function ProjectLandscape() {
           <p className="text-sm text-muted-foreground font-mono">Site integration and exterior programming.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export Spec
           </Button>
-          <Button onClick={handleAction}>
+          <Button onClick={handleGenerate}>
             <Trees className="w-4 h-4 mr-2" />
             Generate Design
           </Button>

@@ -11,10 +11,24 @@ export default function ProjectExterior() {
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
 
-  const handleAction = () => {
+  const handleGenerate = () => {
     toast({
-      title: "Exterior Agent Active",
-      description: "Generating facade articulation options..."
+      title: "Facade Agent Active",
+      description: "Generating facade articulation options based on orientation and program..."
+    });
+  };
+
+  const handleExport = () => {
+    toast({
+      title: "Exporting Spec",
+      description: "Packaging facade specification document for download..."
+    });
+  };
+
+  const handleApply = () => {
+    toast({
+      title: "Recommendations Applied",
+      description: "Deep overhangs and north-face glazing strategy integrated into design."
     });
   };
 
@@ -26,11 +40,11 @@ export default function ProjectExterior() {
           <p className="text-sm text-muted-foreground font-mono">Facade articulation and envelope detailing.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export Spec
           </Button>
-          <Button onClick={handleAction}>
+          <Button onClick={handleGenerate}>
             <Building2 className="w-4 h-4 mr-2" />
             Generate Facades
           </Button>
@@ -105,7 +119,7 @@ export default function ProjectExterior() {
                <div className="relative z-10 text-center">
                  <h3 className="font-bold mb-2">Facade Articulation Agent</h3>
                  <p className="text-xs text-muted-foreground max-w-xs mx-auto mb-4">The agent recommends deep overhangs on the south elevation to mitigate solar gain while maximizing transparent areas on the north facade.</p>
-                 <Button size="sm" variant="secondary">Apply Recommendations</Button>
+                 <Button size="sm" variant="secondary" onClick={handleApply}>Apply Recommendations</Button>
                </div>
             </div>
           </Card>

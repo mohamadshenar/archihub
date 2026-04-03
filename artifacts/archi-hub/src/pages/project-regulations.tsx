@@ -76,10 +76,10 @@ export default function ProjectRegulations() {
             <CardContent className="space-y-4 text-sm">
               <p>The current design requires modifications to pass planning approval.</p>
               <div className="space-y-2">
-                <Button size="sm" variant="destructive" className="w-full justify-start text-left h-auto py-2">
+                <Button size="sm" variant="destructive" className="w-full justify-start text-left h-auto py-2" onClick={() => toast({ title: "Action Flagged", description: "Floor area reduction of 250m² flagged for design team review." })}>
                   <span className="font-mono mr-2">1.</span> Reduce Floor Area by 250m²
                 </Button>
-                <Button size="sm" variant="destructive" className="w-full justify-start text-left h-auto py-2">
+                <Button size="sm" variant="destructive" className="w-full justify-start text-left h-auto py-2" onClick={() => toast({ title: "Action Flagged", description: "Second egress stair requirement flagged for structural integration." })}>
                   <span className="font-mono mr-2">2.</span> Add egress stair to North wing
                 </Button>
               </div>

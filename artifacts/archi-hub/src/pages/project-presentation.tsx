@@ -11,10 +11,31 @@ export default function ProjectPresentation() {
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
 
-  const handleAction = () => {
+  const handleBuildBoard = () => {
     toast({
-      title: "Building Board",
-      description: "Compiling assets into presentation layout..."
+      title: "Building Presentation Board",
+      description: "Compiling all project assets into curated presentation layout..."
+    });
+  };
+
+  const handleSlideshow = () => {
+    toast({
+      title: "Slideshow Mode",
+      description: "Entering full-screen presentation mode..."
+    });
+  };
+
+  const handleFullscreen = () => {
+    toast({
+      title: "Fullscreen",
+      description: "Opening board in fullscreen view..."
+    });
+  };
+
+  const handleDownload = () => {
+    toast({
+      title: "Downloading Board",
+      description: "Packaging presentation board as high-resolution PDF..."
     });
   };
 
@@ -26,11 +47,11 @@ export default function ProjectPresentation() {
           <p className="text-sm text-muted-foreground font-mono">Curated layout of all project intelligence.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleSlideshow}>
             <Play className="w-4 h-4 mr-2" />
             Slideshow
           </Button>
-          <Button onClick={handleAction}>
+          <Button onClick={handleBuildBoard}>
             <Presentation className="w-4 h-4 mr-2" />
             Build Board
           </Button>
@@ -38,10 +59,9 @@ export default function ProjectPresentation() {
       </div>
 
       <div className="bg-card border border-border p-8 rounded-xl shadow-2xl relative overflow-hidden">
-        {/* Abstract representation of a presentation board */}
         <div className="absolute top-4 right-4 flex gap-2">
-           <Button size="icon" variant="ghost" className="h-8 w-8"><Maximize className="w-4 h-4" /></Button>
-           <Button size="icon" variant="ghost" className="h-8 w-8"><Download className="w-4 h-4" /></Button>
+           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleFullscreen}><Maximize className="w-4 h-4" /></Button>
+           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleDownload}><Download className="w-4 h-4" /></Button>
         </div>
         
         <div className="max-w-4xl mx-auto space-y-12">

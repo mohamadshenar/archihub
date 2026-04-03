@@ -13,10 +13,17 @@ export default function ProjectCost() {
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
 
-  const handleAction = () => {
+  const handleUpdate = () => {
     toast({
       title: "Cost Engine Active",
-      description: "Recalculating parametric cost model..."
+      description: "Recalculating parametric cost model based on latest design inputs..."
+    });
+  };
+
+  const handleExport = () => {
+    toast({
+      title: "Exporting BOQ",
+      description: "Packaging bill of quantities and cost breakdown for download..."
     });
   };
 
@@ -28,11 +35,11 @@ export default function ProjectCost() {
           <p className="text-sm text-muted-foreground font-mono">Parametric budget modeling and quantity takeoff.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export BOQ
           </Button>
-          <Button onClick={handleAction}>
+          <Button onClick={handleUpdate}>
             <DollarSign className="w-4 h-4 mr-2" />
             Update Estimate
           </Button>

@@ -114,7 +114,7 @@ export default function ProjectSustainability() {
               </div>
             ))}
           </div>
-          <Button className="w-full mt-6" variant="secondary">Apply Optimization Strategies</Button>
+          <Button className="w-full mt-6" variant="secondary" onClick={() => toast({ title: "Strategies Applied", description: "Optimization recommendations integrated into design parameters." })}>Apply Optimization Strategies</Button>
         </CardContent>
       </Card>
       <WorkflowNav projectId={projectId} />

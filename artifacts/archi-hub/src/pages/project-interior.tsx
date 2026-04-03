@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,29 +14,52 @@ export default function ProjectInterior() {
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
 
-  const handleAction = () => {
+  const [selectedStyle, setSelectedStyle] = useState<string>("Minimalist Industrial");
+
+  const handleGenerate = () => {
     toast({
       title: "Interior Agent Active",
-      description: "Synthesizing interior styles..."
+      description: "Synthesizing interior style directions based on personality profile..."
     });
   };
 
-  const renderStyleCard = (name: string, desc: string, colors: string[], selected = false) => (
-    <Card className={`overflow-hidden cursor-pointer transition-all ${selected ? 'border-primary' : 'hover:border-primary/50'}`}>
-      <div className="h-24 w-full flex">
-        {colors.map((c, i) => (
-           <div key={i} className="h-full flex-1" style={{backgroundColor: c}}></div>
-        ))}
-      </div>
-      <CardContent className="p-4">
-        <div className="flex justify-between items-center mb-1">
-          <h4 className="font-bold text-sm">{name}</h4>
-          {selected && <Badge className="text-[10px] py-0 px-1 font-mono">SELECTED</Badge>}
+  const handleExport = () => {
+    toast({
+      title: "Exporting Spec",
+      description: "Packaging interior specification and FF&E schedule for download..."
+    });
+  };
+
+  const handleSelectStyle = (name: string) => {
+    setSelectedStyle(name);
+    toast({
+      title: "Style Direction Selected",
+      description: `"${name}" applied to the Lobby space.`
+    });
+  };
+
+  const renderStyleCard = (name: string, desc: string, colors: string[]) => {
+    const isSelected = selectedStyle === name;
+    return (
+      <Card
+        className={`overflow-hidden cursor-pointer transition-all ${isSelected ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : 'hover:border-primary/50'}`}
+        onClick={() => handleSelectStyle(name)}
+      >
+        <div className="h-24 w-full flex">
+          {colors.map((c, i) => (
+             <div key={i} className="h-full flex-1" style={{backgroundColor: c}}></div>
+          ))}
         </div>
-        <p className="text-xs text-muted-foreground">{desc}</p>
-      </CardContent>
-    </Card>
-  );
+        <CardContent className="p-4">
+          <div className="flex justify-between items-center mb-1">
+            <h4 className="font-bold text-sm">{name}</h4>
+            {isSelected && <Badge className="text-[10px] py-0 px-1 font-mono">SELECTED</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">{desc}</p>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.2}} className="space-y-6">
@@ -45,11 +69,11 @@ export default function ProjectInterior() {
           <p className="text-sm text-muted-foreground font-mono">Spatial aesthetics and FF&E coordination.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export Spec
           </Button>
-          <Button onClick={handleAction}>
+          <Button onClick={handleGenerate}>
             <Sofa className="w-4 h-4 mr-2" />
             Generate Styles
           </Button>
@@ -71,8 +95,7 @@ export default function ProjectInterior() {
               {renderStyleCard(
                 "Minimalist Industrial", 
                 "Exposed services, polished concrete, sharp steel details.", 
-                ["#1c1917", "#44403c", "#a8a29e", "#e7e5e4", "#ea580c"],
-                true
+                ["#1c1917", "#44403c", "#a8a29e", "#e7e5e4", "#ea580c"]
               )}
               {renderStyleCard(
                 "Warm Brutalism", 

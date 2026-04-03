@@ -1,4 +1,5 @@
 import { Link, useLocation, useParams } from "wouter";
+import { useState, useEffect } from "react";
 import { 
   Building2, 
   LayoutDashboard, 
@@ -117,6 +118,11 @@ const MISSION_ITEMS = [
   { path: "export", label: "Export Files", icon: Download },
 ];
 
+function getMissionKeyFromLocation(location: string, projectId: number): string {
+  const base = `/projects/${projectId}`;
+  return location.replace(base, "").replace(/^\//, "");
+}
+
 export function ProjectLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const params = useParams();
@@ -125,6 +131,29 @@ export function ProjectLayout({ children }: { children: React.ReactNode }) {
   const { data: project } = useGetProject(projectId, {
     query: { enabled: !!projectId }
   });
+
+  const visitedKey = `archi_visited_${projectId}`;
+
+  const [visited, setVisited] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(visitedKey);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  useEffect(() => {
+    if (!projectId) return;
+    const missionKey = getMissionKeyFromLocation(location, projectId);
+    setVisited(prev => {
+      if (prev.has(missionKey)) return prev;
+      const next = new Set(prev);
+      next.add(missionKey);
+      try { localStorage.setItem(visitedKey, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, [location, projectId, visitedKey]);
+
+  const currentMissionKey = getMissionKeyFromLocation(location, projectId);
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans">
@@ -139,13 +168,11 @@ export function ProjectLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 space-y-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-          {MISSION_ITEMS.map((item, index) => {
+          {MISSION_ITEMS.map((item) => {
             const itemPath = `/projects/${projectId}${item.path ? `/${item.path}` : ""}`;
             const isActive = location === itemPath;
-            
-            // Fake status logic for MVP
-            const isComplete = index < 3;
-            const isInProgress = index === 3;
+            const isComplete = visited.has(item.path) && !isActive;
+            const isInProgress = isActive;
 
             return (
               <Link key={item.path} href={itemPath}>
@@ -158,7 +185,11 @@ export function ProjectLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="w-4 h-4 shrink-0" />
                   <span className="truncate flex-1">{item.label}</span>
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${isComplete ? 'bg-green-500' : isInProgress ? 'bg-primary' : 'bg-muted'}`} />
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    isComplete ? 'bg-green-500' : 
+                    isInProgress ? 'bg-primary' : 
+                    'bg-muted'
+                  }`} />
                 </div>
               </Link>
             );

@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, Layers, SplitSquareHorizontal } from "lucide-react";
+import { Lightbulb, Layers, SplitSquareHorizontal, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
@@ -32,11 +33,35 @@ export default function ProjectConcept() {
   const params = useParams();
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
+  const [selectedConcept, setSelectedConcept] = useState<number>(0);
+  const [moodProfile] = useState({ industrial: 40, minimal: 80 });
 
-  const handleAction = (msg: string) => {
+  const handleSelectConcept = (idx: number) => {
+    setSelectedConcept(idx);
     toast({
-      title: "Agent Executing",
-      description: msg
+      title: `Concept ${String.fromCharCode(65 + idx)} Selected`,
+      description: `"${CONCEPTS[idx].title}" is now the active design concept.`
+    });
+  };
+
+  const handleCompare = () => {
+    toast({
+      title: "Comparison Mode",
+      description: "Overlaying concept metrics side-by-side for evaluation."
+    });
+  };
+
+  const handleMoodboard = () => {
+    toast({
+      title: "Moodboard Generated",
+      description: "Reference imagery compiled from the selected concept palette."
+    });
+  };
+
+  const handleGenerateNew = () => {
+    toast({
+      title: "Concept Generator Running",
+      description: "AI agent is synthesising a new design direction from your brief..."
     });
   };
 
@@ -48,15 +73,15 @@ export default function ProjectConcept() {
           <p className="text-sm text-muted-foreground font-mono">Narrative generation and stylistic direction.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={() => handleAction("Comparing concepts...")}>
+          <Button variant="outline" onClick={handleCompare}>
             <SplitSquareHorizontal className="w-4 h-4 mr-2" />
             Compare
           </Button>
-          <Button variant="outline" onClick={() => handleAction("Generating moodboard...")}>
+          <Button variant="outline" onClick={handleMoodboard}>
             <Layers className="w-4 h-4 mr-2" />
             Moodboard
           </Button>
-          <Button onClick={() => handleAction("Running Concept Generator Agent...")}>
+          <Button onClick={handleGenerateNew}>
             <Lightbulb className="w-4 h-4 mr-2" />
             Generate New
           </Button>
@@ -67,26 +92,29 @@ export default function ProjectConcept() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-mono text-muted-foreground uppercase tracking-wider">Computed Mood Profile</h3>
+            <Badge variant="secondary" className="font-mono text-[10px]">
+              Active: {CONCEPTS[selectedConcept].title}
+            </Badge>
           </div>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-xs font-mono mb-1">
                 <span>Natural vs Industrial</span>
-                <span>40% Industrial</span>
+                <span>{moodProfile.industrial}% Industrial</span>
               </div>
               <div className="h-2 flex bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 w-[60%]" />
-                <div className="h-full bg-slate-500 w-[40%]" />
+                <div className="h-full bg-emerald-500" style={{ width: `${100 - moodProfile.industrial}%` }} />
+                <div className="h-full bg-slate-500" style={{ width: `${moodProfile.industrial}%` }} />
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs font-mono mb-1">
                 <span>Minimal vs Expressive</span>
-                <span>80% Minimal</span>
+                <span>{moodProfile.minimal}% Minimal</span>
               </div>
               <div className="h-2 flex bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-stone-300 w-[80%]" />
-                <div className="h-full bg-amber-500 w-[20%]" />
+                <div className="h-full bg-stone-300" style={{ width: `${moodProfile.minimal}%` }} />
+                <div className="h-full bg-amber-500" style={{ width: `${100 - moodProfile.minimal}%` }} />
               </div>
             </div>
           </div>
@@ -94,44 +122,67 @@ export default function ProjectConcept() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {CONCEPTS.map((concept, idx) => (
-          <Card key={idx} className="flex flex-col hover:border-primary/50 transition-all">
-            <CardHeader>
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-mono text-muted-foreground">Option 0{idx + 1}</span>
-              </div>
-              <CardTitle className="text-xl">{concept.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <p className="text-sm text-muted-foreground leading-relaxed mb-6 flex-1">
-                {concept.narrative}
-              </p>
-              
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {concept.tags.map((tag, i) => (
-                    <Badge key={i} variant="secondary" className="text-[10px] font-mono uppercase bg-muted/50 text-muted-foreground border-0">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div>
-                  <h4 className="text-[10px] font-mono text-muted-foreground uppercase mb-2">Palette Extract</h4>
-                  <div className="flex h-6 rounded-md overflow-hidden">
-                    {concept.materials.map((color, i) => (
-                      <div key={i} className="flex-1" style={{ backgroundColor: color }} />
-                    ))}
+        {CONCEPTS.map((concept, idx) => {
+          const isSelected = selectedConcept === idx;
+          return (
+            <motion.div
+              key={idx}
+              animate={{ scale: isSelected ? 1 : 0.98 }}
+              transition={{ duration: 0.15 }}
+            >
+              <Card
+                className={`flex flex-col transition-all cursor-pointer h-full ${
+                  isSelected
+                    ? "border-primary shadow-lg shadow-primary/10 bg-primary/5"
+                    : "hover:border-primary/50"
+                }`}
+                onClick={() => handleSelectConcept(idx)}
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-mono text-muted-foreground">Option 0{idx + 1}</span>
+                    {isSelected && (
+                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                    )}
                   </div>
-                </div>
+                  <CardTitle className="text-xl">{concept.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col">
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-6 flex-1">
+                    {concept.narrative}
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {concept.tags.map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="text-[10px] font-mono uppercase bg-muted/50 text-muted-foreground border-0">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
 
-                <Button className="w-full mt-4" variant={idx === 0 ? "default" : "outline"} onClick={() => handleAction(`Concept 0${idx + 1} selected.`)}>
-                  {idx === 0 ? "Selected Concept" : "Select Concept"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                    <div>
+                      <h4 className="text-[10px] font-mono text-muted-foreground uppercase mb-2">Palette Extract</h4>
+                      <div className="flex h-6 rounded-md overflow-hidden">
+                        {concept.materials.map((color, i) => (
+                          <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <Button
+                      className="w-full mt-4"
+                      variant={isSelected ? "default" : "outline"}
+                      onClick={(e) => { e.stopPropagation(); handleSelectConcept(idx); }}
+                    >
+                      {isSelected ? "✓ Selected Concept" : "Select Concept"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
       <WorkflowNav projectId={projectId} />
     </motion.div>

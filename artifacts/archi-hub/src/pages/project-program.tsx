@@ -67,7 +67,7 @@ export default function ProjectProgram() {
           </Button>
         )}
         {program && (
-          <Link href={`/projects/${projectId}/images`}>
+          <Link href={`/projects/${projectId}/visualization`}>
             <Button variant="secondary">
               Generate Imagery <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
