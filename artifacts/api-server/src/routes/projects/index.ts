@@ -973,7 +973,7 @@ router.post("/projects/:id/images", async (req, res): Promise<void> => {
 });
 
 // ─── POST /projects/:id/exterior — AI Facade Design ─────────────────────────
-router.post("/:id/exterior", async (req, res) => {
+router.post("/projects/:id/exterior", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
 
@@ -1048,7 +1048,7 @@ WWR should be 25–65%. Color palette should be 4 realistic hex codes reflecting
 });
 
 // ─── PATCH /projects/:id/exterior/apply — Apply recommendations ──────────────
-router.patch("/:id/exterior/apply", async (req, res) => {
+router.patch("/projects/:id/exterior/apply", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
 
