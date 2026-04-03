@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Lightbulb, Layers, SplitSquareHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 import { Badge } from "@/components/ui/badge";
 
 const CONCEPTS = [
@@ -132,6 +133,7 @@ export default function ProjectConcept() {
           </Card>
         ))}
       </div>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

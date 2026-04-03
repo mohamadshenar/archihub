@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, BrainCircuit, Wind, Sun, Mountain, Leaf, AlertTriangle, Lightbulb, Building2, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 
 export default function ProjectAnalysis() {
   const params = useParams();
@@ -225,6 +226,7 @@ export default function ProjectAnalysis() {
           </div>
         </motion.div>
       )}
+      <WorkflowNav projectId={projectId} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Leaf, Sun, Wind, Droplets, ArrowRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 
 export default function ProjectSustainability() {
   const params = useParams();
@@ -116,6 +117,7 @@ export default function ProjectSustainability() {
           <Button className="w-full mt-6" variant="secondary">Apply Optimization Strategies</Button>
         </CardContent>
       </Card>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

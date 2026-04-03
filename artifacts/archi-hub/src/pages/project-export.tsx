@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Download, FileBox, FileImage, FileText, Archive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 
 export default function ProjectExport() {
   const params = useParams();
@@ -64,6 +65,7 @@ export default function ProjectExport() {
           </Card>
         ))}
       </div>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

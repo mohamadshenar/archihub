@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useEffect, useRef } from "react";
+import { WorkflowNav } from "@/components/workflow-nav";
 
 const questionnaireSchema = z.object({
   totalAreaNeeded: z.string().min(1, "Required"),
@@ -222,6 +223,7 @@ export default function ProjectQuestionnaire() {
           </Form>
         </CardContent>
       </Card>
+      <WorkflowNav projectId={projectId} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Map, Download, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 
 export default function ProjectContext() {
   const params = useParams();
@@ -118,6 +119,7 @@ export default function ProjectContext() {
           </Card>
         </div>
       </div>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

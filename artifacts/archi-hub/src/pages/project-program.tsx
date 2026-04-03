@@ -12,6 +12,7 @@ import { ArrowLeft, LayoutTemplate, ArrowRight, Loader2, Maximize } from "lucide
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 
 export default function ProjectProgram() {
   const params = useParams();
@@ -151,6 +152,7 @@ export default function ProjectProgram() {
           </div>
         </motion.div>
       )}
+      <WorkflowNav projectId={projectId} />
     </div>
   );
 }

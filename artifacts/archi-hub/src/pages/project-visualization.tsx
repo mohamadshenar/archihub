@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ImageIcon, Loader2, Sparkles, Download, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 
@@ -185,6 +186,7 @@ export default function ProjectVisualization() {
           <ImageGrid items={aerialImages} type="exterior" />
         </TabsContent>
       </Tabs>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

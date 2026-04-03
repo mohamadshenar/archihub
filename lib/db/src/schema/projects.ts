@@ -15,6 +15,7 @@ export const projectsTable = pgTable("projects", {
   siteAnalysis: jsonb("site_analysis"),
   questionnaire: jsonb("questionnaire"),
   program: jsonb("program"),
+  metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

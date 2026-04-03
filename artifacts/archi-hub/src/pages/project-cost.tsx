@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { DollarSign, BarChart3, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 
@@ -114,6 +115,7 @@ export default function ProjectCost() {
           </CardContent>
         </Card>
       </div>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

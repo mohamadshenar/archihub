@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sofa, Palette, Download, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
@@ -116,6 +117,7 @@ export default function ProjectInterior() {
           </div>
         </TabsContent>
       </Tabs>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

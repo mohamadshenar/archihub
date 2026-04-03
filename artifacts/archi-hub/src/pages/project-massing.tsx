@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Box, Compass, Rotate3D, Maximize } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProjectMassing() {
@@ -182,6 +183,7 @@ export default function ProjectMassing() {
           </Card>
         </div>
       </div>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

@@ -41,6 +41,7 @@ function formatProject(p: typeof projectsTable.$inferSelect, imageCount = 0) {
     siteAnalysis: p.siteAnalysis ?? undefined,
     questionnaire: p.questionnaire ?? undefined,
     program: p.program ?? undefined,
+    metadata: (p.metadata as Record<string, unknown>) ?? undefined,
     imageCount,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -281,6 +282,36 @@ router.put("/projects/:id/questionnaire", async (req, res): Promise<void> => {
     .where(eq(projectImagesTable.projectId, params.data.id));
 
   res.json(formatProject(project, count ?? 0));
+});
+
+// Generic metadata endpoint — stores/merges any section data (context, brief, personality, etc.)
+router.get("/projects/:id/metadata", async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(project.metadata ?? {});
+});
+
+router.put("/projects/:id/metadata", async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const { section, data } = req.body as { section: string; data: unknown };
+  if (!section || typeof section !== "string") { res.status(400).json({ error: "section required" }); return; }
+
+  const [existing] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+
+  const current = (existing.metadata as Record<string, unknown>) ?? {};
+  const updated = { ...current, [section]: data };
+
+  const [project] = await db
+    .update(projectsTable)
+    .set({ metadata: updated })
+    .where(eq(projectsTable.id, id))
+    .returning();
+
+  res.json(project.metadata ?? {});
 });
 
 router.post("/projects/:id/analyze", async (req, res): Promise<void> => {

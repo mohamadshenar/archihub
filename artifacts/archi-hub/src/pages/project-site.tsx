@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, Loader2, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { WorkflowNav } from "@/components/workflow-nav";
 
 // Fix leaflet icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -169,6 +170,7 @@ export default function ProjectSite() {
           </div>
         </Card>
       </div>
+      <WorkflowNav projectId={projectId} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Grid3X3, GitMerge, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { WorkflowNav } from "@/components/workflow-nav";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function ProjectZoning() {
@@ -166,6 +167,7 @@ export default function ProjectZoning() {
           </Table>
         </CardContent>
       </Card>
+      <WorkflowNav projectId={projectId} />
     </motion.div>
   );
 }

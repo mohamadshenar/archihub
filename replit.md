@@ -31,12 +31,17 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - Architectural program generation with spaces, materials, sustainability strategies
   - AI image generation for exterior, interior, and landscape views
   - Project dashboard with status tracking and workflow steps
+  - 19-mission project workflow: Overview → Site → Analysis → Context → Brief → Personality → Program → Zoning → Concept → Massing → Exterior → Interior → Landscape → Sustainability → Regulations → Cost → Visualization → Presentation → Export
+  - `WorkflowNav` component on every mission page (Prev/Next navigation, X/19 step counter)
+  - `useProjectMission<T>` hook for loading/saving per-mission form data via metadata API
+  - Controlled state on Client Brief (textareas, sliders, style badges, sustainability checkboxes)
+  - Controlled state on Personality Analysis (5 sliders, color picker, lifestyle checkboxes, computed profile)
 - **Design**: Dark architecture style — deep charcoal/slate backgrounds, amber/gold accents, Space Mono + Syne typography
 
 ### API Server (`artifacts/api-server`)
 - **Type**: Express 5 API
 - **Preview path**: `/api`
-- **Routes**: `/api/projects`, `/api/projects/:id`, `/api/projects/:id/site`, `/api/projects/:id/analyze`, `/api/projects/:id/questionnaire`, `/api/projects/:id/program`, `/api/projects/:id/images`, `/api/projects/dashboard/summary`, `/api/projects/recent`
+- **Routes**: `/api/projects`, `/api/projects/:id`, `/api/projects/:id/site`, `/api/projects/:id/analyze`, `/api/projects/:id/questionnaire`, `/api/projects/:id/program`, `/api/projects/:id/images`, `/api/projects/dashboard/summary`, `/api/projects/recent`, `/api/projects/:id/metadata` (GET/PUT for per-mission form data)
 
 ## Database Schema
 
