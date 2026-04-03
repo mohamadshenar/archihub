@@ -1,0 +1,926 @@
+Edit my existing web app and turn it into a professional AI-powered architectural platform called “Archi Hub”.
+
+IMPORTANT:
+- Do not rebuild the app from scratch unless necessary.
+- Keep the existing project and improve it.
+- The goal is to make it look and work like a real architectural AI platform.
+- The app must have a clean, premium, modern, minimal, architectural dashboard UI.
+- Use a dark elegant interface with clean cards, subtle lines, strong typography, soft shadows, rounded corners, and professional spacing.
+- The platform should feel like a digital architecture office powered by AI agents.
+
+CORE PRODUCT IDEA:
+Archi Hub is an AI architectural platform where each AI agent performs a specific mission in the architectural workflow.
+The platform must guide the user through a real design process:
+
+Understand → Analyze → Decide → Design → Visualize
+
+NOT just prompt → image.
+
+==================================================
+1. GLOBAL APP STRUCTURE
+==================================================
+
+Build or improve these main sections:
+
+1. Landing Page
+2. Authentication Page
+3. User Dashboard
+4. Project Dashboard
+5. One dedicated page for each architectural mission
+6. Final Presentation page
+7. Export page
+
+==================================================
+2. LANDING PAGE
+==================================================
+
+Create or improve a premium landing page for Archi Hub.
+
+It must include:
+- Archi Hub logo
+- short professional headline
+- short supporting statement
+- architectural hero visual or abstract architectural background
+- button: “Start Your Project”
+- button: “See How It Works”
+- button: “Login / Sign Up”
+
+Add sections below hero:
+- What Archi Hub is
+- How it works in 6 phases
+- AI architectural agents overview
+- Key features
+- Why Archi Hub is different
+- Call to action footer
+
+Suggested tone:
+Professional, visionary, architectural, startup-level.
+
+Example messaging direction:
+“Your AI architectural design hub from site analysis to concept, massing, interior, exterior, landscape, and final presentation.”
+
+==================================================
+3. AUTHENTICATION PAGE
+==================================================
+
+Create or improve:
+- Sign Up
+- Login
+- Forgot Password
+
+Style must match the dark premium architecture UI.
+
+==================================================
+4. USER DASHBOARD
+==================================================
+
+Create a main dashboard after login.
+
+It should contain:
+- button: Create New Project
+- Recent Projects
+- Saved Renders
+- AI Missions overview
+- Notifications
+- Account/Profile
+
+Project cards should show:
+- project name
+- project type
+- location
+- style
+- last updated
+- quick open button
+
+==================================================
+5. CREATE NEW PROJECT FLOW
+==================================================
+
+Create a project creation form with these fields:
+
+- Project Name
+- Project Type
+  Examples: villa, tower, office, mixed-use, café, clinic, mall
+- Country / City
+- Land Location or Coordinates
+- Plot Area
+- Budget Range
+- Preferred Style
+  Examples: modern, minimal, parametric, organic, classical, industrial
+
+Goal:
+Create the project base and define the scope.
+
+After creation, route the user into the Project Dashboard.
+
+==================================================
+6. PROJECT DASHBOARD LAYOUT
+==================================================
+
+Use this layout:
+
+TOP BAR:
+- Archi Hub logo
+- Current project name
+- Search
+- Notifications
+- Profile menu
+
+LEFT SIDEBAR:
+Create a professional left sidebar with these pages in this exact order:
+
+- Overview
+- Site Selection
+- Site Analysis
+- Context Study
+- Client Brief
+- Personality Analysis
+- Program Generator
+- Zoning & Planning
+- Concept Studio
+- Massing Generator
+- Exterior Design
+- Interior Design
+- Landscape Design
+- Sustainability Check
+- Code & Regulations
+- Cost Estimate
+- Visualization Studio
+- Final Presentation
+- Export Files
+
+MAIN CONTENT AREA:
+- Displays the selected page content
+
+RIGHT OPTIONAL PANEL:
+- AI assistant chat
+- progress tracker
+- saved outputs
+- quick tips
+
+IMPORTANT:
+Do not place all actions on one page.
+Level 1 = sidebar pages
+Level 2 = action buttons inside each page
+
+==================================================
+7. OVERVIEW PAGE
+==================================================
+
+This page summarizes the project.
+
+Include:
+- project info card
+- workflow progress
+- latest generated outputs
+- quick summary cards
+- recommended next step
+
+Buttons:
+- Edit Project Info
+- Continue Workflow
+- View Saved Results
+- Export Summary
+
+==================================================
+8. SITE SELECTION PAGE
+==================================================
+
+Purpose:
+Choose or define the exact land plot.
+
+Include:
+- interactive map area placeholder
+- site search field
+- coordinate input
+- selected site summary card
+
+Buttons:
+- Search Location
+- Drop Pin
+- Upload Site Coordinates
+- Detect Plot Boundary
+- Confirm Site
+
+AI MISSION:
+Site Agent
+
+==================================================
+9. SITE ANALYSIS PAGE
+==================================================
+
+Purpose:
+Analyze environmental and land conditions.
+
+What the system should conceptually handle:
+- coordinates
+- plot boundaries
+- nearby roads
+- access points
+- surrounding buildings
+- topography
+- climate zone
+- sun path
+- wind direction
+- noise sources
+- views
+- nearby landmarks
+
+Outputs section:
+- site map
+- GIS-style analysis
+- downloadable site summary
+
+Buttons:
+- Run Site Analysis
+- Sun Path Analysis
+- Wind Analysis
+- Topography Check
+- Access & Roads Check
+- Save Site Report
+
+AI MISSION:
+Site Agent
+
+==================================================
+10. CONTEXT STUDY PAGE
+==================================================
+
+Purpose:
+Study the architectural and urban context around the site.
+
+What the system should conceptually analyze:
+- urban fabric
+- surrounding architectural language
+- building heights
+- density
+- street character
+- mobility and pedestrian movement
+- existing materials and colors
+- cultural identity
+- legal / zoning considerations
+- opportunities and constraints
+
+Outputs section:
+- SWOT analysis
+- context diagrams
+- recommendations for massing and orientation
+
+Buttons:
+- Analyze Urban Context
+- Detect Building Heights
+- Study Street Character
+- Analyze Views
+- Show Opportunities & Constraints
+- Generate Context Report
+
+AI MISSION:
+Context Analyst Agent
+
+==================================================
+11. CLIENT BRIEF PAGE
+==================================================
+
+Purpose:
+Collect the client’s direct project needs.
+
+Create:
+- structured form
+- optional conversational AI brief chat area
+
+Fields and inputs should include:
+- functional requirements
+- number of users
+- space types needed
+- required adjacencies
+- privacy levels
+- special activities
+- style references
+- must-have list
+- avoid list
+- budget priority
+- sustainability goals
+- timeline
+
+Output:
+- structured design brief
+
+Buttons:
+- Fill Brief Form
+- Add Space Requirements
+- Upload Reference Images
+- Save Client Needs
+- Generate Brief Summary
+
+AI MISSION:
+Program Brief Agent
+
+==================================================
+12. PERSONALITY ANALYSIS PAGE
+==================================================
+
+Purpose:
+Analyze the client’s lifestyle and spatial personality.
+
+Create a questionnaire UI that can evaluate:
+- introvert vs extrovert
+- formal vs relaxed
+- luxury vs practical
+- open spaces vs private spaces
+- natural light preference
+- color and material preference
+- family/social habits
+- work-from-home needs
+- entertainment habits
+- cultural values
+
+Outputs:
+- personality profile
+- spatial behavior profile
+- hidden design logic
+
+Buttons:
+- Start Questionnaire
+- Analyze Lifestyle
+- Analyze Personality
+- Generate User Profile
+- Save Behavioral Report
+
+AI MISSION:
+Human Behavior / Personality Agent
+
+==================================================
+13. PROGRAM GENERATOR PAGE
+==================================================
+
+Purpose:
+Generate both the explicit and hidden architectural program.
+
+Use as inputs:
+- site
+- context
+- client needs
+- personality analysis
+
+Hidden program examples:
+- transitional spaces
+- reading corner
+- private outdoor courtyard
+- flexible studio
+- kids observation zone
+- meditation niche
+- service circulation improvements
+- hidden storage
+- social threshold zones
+- privacy/noise buffer spaces
+
+Outputs:
+- explicit program
+- hidden program
+- priority ranking
+
+Buttons:
+- Generate Space Program
+- Generate Hidden Program
+- Prioritize Spaces
+- Edit Program
+- Save Program
+
+AI MISSION:
+Program Intelligence Agent
+
+==================================================
+14. ZONING & PLANNING PAGE
+==================================================
+
+Purpose:
+Organize the program architecturally.
+
+Create sections for:
+- bubble diagrams
+- zoning diagrams
+- space adjacency logic
+- public / private / service zones
+- floor-by-floor planning logic
+- circulation paths
+
+Outputs:
+- conceptual planning diagrams
+- suggested layout directions
+
+Buttons:
+- Generate Bubble Diagram
+- Create Adjacency Matrix
+- Generate Zoning
+- Show Circulation Paths
+- Save Planning Diagram
+
+AI MISSION:
+Planning Agent
+
+==================================================
+15. CONCEPT STUDIO PAGE
+==================================================
+
+Purpose:
+Generate the main architectural concept directions.
+
+The AI should conceptually generate:
+- concept statements
+- design narratives
+- form inspirations
+- massing directions
+- stylistic themes
+- moodboards
+- material palettes
+
+Outputs:
+- 2 to 4 concept options
+- concept keywords
+- conceptual diagrams
+
+Buttons:
+- Generate Concepts
+- Compare Concepts
+- Select Concept
+- Generate Moodboard
+- Generate Material Palette
+- Save Selected Concept
+
+AI MISSION:
+Concept Design Agent
+
+==================================================
+16. MASSING GENERATOR PAGE
+==================================================
+
+Purpose:
+Generate early 3D architectural massing directions.
+
+The system should conceptually create:
+- massing options
+- volumetric studies
+- site placement
+- orientation studies
+- facade direction tests
+- courtyard / open-space studies
+
+Outputs:
+- simple 3D forms
+- multiple massing alternatives
+
+Buttons:
+- Generate Massing
+- Create Option A
+- Create Option B
+- Create Option C
+- Compare Massing Options
+- Approve Selected Massing
+
+AI MISSION:
+Massing Agent
+
+==================================================
+17. EXTERIOR DESIGN PAGE
+==================================================
+
+Purpose:
+Develop the outer character of the project.
+
+The system should conceptually generate:
+- facade options
+- openings
+- materials
+- proportions
+- shading devices
+- architectural language
+- daytime views
+- nighttime views
+
+Outputs:
+- exterior rendered shots
+- facade studies
+- material moodboards
+
+Buttons:
+- Generate Facade Options
+- Generate Day View
+- Generate Night View
+- Test Materials
+- Save Exterior Design
+
+AI MISSION:
+Exterior Design Agent
+
+==================================================
+18. INTERIOR DESIGN PAGE
+==================================================
+
+Purpose:
+Develop the interior architecture and atmosphere.
+
+The system should conceptually generate:
+- interior themes
+- furniture style
+- lighting mood
+- materials and colors
+- room-by-room concepts
+- atmosphere and user experience
+
+Outputs:
+- living room renders
+- bedroom renders
+- office/lobby/interior shots
+- interior palettes
+
+Buttons:
+- Select Room Type
+- Generate Interior Style
+- Generate Furniture Layout
+- Generate Lighting Mood
+- Save Interior Design
+
+Create room tabs or buttons for:
+- Living Room
+- Bedroom
+- Lobby
+- Office
+- Kitchen
+- Bathroom
+
+AI MISSION:
+Interior Design Agent
+
+==================================================
+19. LANDSCAPE DESIGN PAGE
+==================================================
+
+Purpose:
+Develop the outdoor environment.
+
+The system should conceptually generate:
+- softscape and hardscape
+- pathways
+- water features
+- planting strategy
+- seating areas
+- outdoor social zones
+- microclimate comfort
+- shading
+- parking / open space integration
+
+Outputs:
+- landscape plans
+- outdoor renderings
+- planting concepts
+
+Buttons:
+- Generate Landscape Concept
+- Add Pathways
+- Add Green Areas
+- Add Seating Zones
+- Add Water Features
+- Save Landscape Design
+
+AI MISSION:
+Landscape Agent
+
+==================================================
+20. SUSTAINABILITY CHECK PAGE
+==================================================
+
+Purpose:
+Evaluate environmental performance.
+
+The system should conceptually analyze:
+- sunlight
+- shading
+- thermal comfort
+- natural ventilation
+- energy strategies
+- water collection
+- passive design ideas
+- green roof options
+- carbon-conscious materials
+
+Buttons:
+- Run Climate Analysis
+- Check Daylight Performance
+- Check Ventilation Strategy
+- Suggest Passive Solutions
+- Save Sustainability Report
+
+AI MISSION:
+Sustainability Agent
+
+==================================================
+21. CODE & REGULATIONS PAGE
+==================================================
+
+Purpose:
+Check design compliance.
+
+The system should conceptually check:
+- setbacks
+- height limits
+- FAR / BCR
+- parking requirements
+- accessibility
+- fire egress basics
+- local zoning logic
+
+Buttons:
+- Check Setbacks
+- Check Height Limits
+- Check FAR/BCR
+- Check Parking
+- Check Accessibility
+- Save Compliance Report
+
+AI MISSION:
+Code / Regulation Agent
+
+==================================================
+22. COST ESTIMATE PAGE
+==================================================
+
+Purpose:
+Estimate project cost impact.
+
+The system should conceptually estimate:
+- rough construction cost
+- cost by area
+- cost by material direction
+- budget impact of design choices
+
+Buttons:
+- Generate Rough Cost
+- Estimate Cost per m²
+- Compare Budget vs Design
+- Suggest Lower-Cost Alternatives
+- Save Cost Report
+
+AI MISSION:
+Cost Agent
+
+==================================================
+23. VISUALIZATION STUDIO PAGE
+==================================================
+
+Purpose:
+Generate final visualization outputs.
+
+The system should conceptually generate:
+- exterior hero shots
+- interior hero shots
+- landscape hero shots
+- aerial shots
+- sunset / golden hour / night renders
+- walkthrough scenes
+
+Outputs:
+- high-quality images for each category
+- saveable gallery
+
+Buttons:
+- Generate Exterior Render
+- Generate Interior Render
+- Generate Landscape Render
+- Generate Aerial Shot
+- Generate Sunset Shot
+- Generate Walkthrough Frames
+- Save to Gallery
+
+AI MISSION:
+Visualization Agent
+
+==================================================
+24. FINAL PRESENTATION PAGE
+==================================================
+
+Purpose:
+Collect all outputs into a professional presentation interface.
+
+Create sections for:
+- concept boards
+- diagrams
+- render gallery
+- design explanation
+- project summary
+
+Buttons:
+- Build Presentation Board
+- Create Concept Sheet
+- Create Site Analysis Sheet
+- Create Render Sheet
+- Preview Final Package
+
+==================================================
+25. EXPORT FILES PAGE
+==================================================
+
+Purpose:
+Download project deliverables.
+
+Allow export options for:
+- PDF concept boards
+- moodboards
+- site analysis sheets
+- client brief report
+- presentation boards
+- render packages
+
+Buttons:
+- Export PDF
+- Export Images
+- Export Client Report
+- Export Presentation Board
+- Download Full Project
+
+==================================================
+26. ADDITIONAL SYSTEM FEATURES
+==================================================
+
+Also add these platform-level features:
+
+A. Revision / Feedback Loop
+The user must be able to give design feedback such as:
+- make it more modern
+- reduce cost
+- increase privacy
+- add more greenery
+- make the facade more iconic
+
+Create a reusable feedback input component and regeneration action.
+
+B. Inspiration / Reference Board
+Create a section where users can:
+- upload reference projects
+- save inspiration images
+- store material references
+- organize architectural precedents
+
+C. Collaboration Area
+Allow:
+- architect/client comments
+- pinned decisions
+- revision history
+- team collaboration placeholders
+
+D. Saved Outputs
+Create reusable cards for:
+- saved reports
+- saved concepts
+- saved renders
+- saved diagrams
+
+E. Progress Tracking
+Show workflow completion across the project phases.
+
+==================================================
+27. AGENT ARCHITECTURE DISPLAY
+==================================================
+
+Somewhere in the dashboard, create an “AI Team” section showing these agents:
+
+- Site Agent
+- Context Agent
+- Client Brief Agent
+- Personality Agent
+- Program Agent
+- Planning Agent
+- Concept Agent
+- Massing Agent
+- Exterior Agent
+- Interior Agent
+- Landscape Agent
+- Visualization Agent
+- Sustainability Agent
+- Code / Regulation Agent
+- Cost Agent
+
+Each agent card should have:
+- agent name
+- mission summary
+- status
+- trigger button or placeholder
+
+==================================================
+28. USER JOURNEY / PHASES
+==================================================
+
+Reflect this sequence in the UI progress tracker:
+
+Phase 1 — Discovery
+- Create project
+- Select site
+- Site extraction
+- Context study
+
+Phase 2 — Understanding the client
+- Client brief input
+- Social / personality questionnaire
+- Lifestyle analysis
+
+Phase 3 — Architectural intelligence
+- Hidden program generation
+- Space requirements
+- Zoning and circulation
+
+Phase 4 — Design creation
+- Concept generation
+- Massing options
+- Exterior / interior / landscape generation
+
+Phase 5 — Evaluation
+- Sustainability check
+- Regulation check
+- Cost estimate
+
+Phase 6 — Presentation
+- Final renders
+- Boards
+- Reports
+- Export package
+
+==================================================
+29. UI / UX REQUIREMENTS
+==================================================
+
+Design style:
+- premium
+- minimal
+- elegant
+- architectural
+- dark interface
+- highly organized dashboard
+- clean grid system
+- modern cards
+- soft shadows
+- smooth hover states
+- polished buttons
+- professional icons
+- desktop-first responsive layout
+
+Make the app feel like:
+- an architecture studio operating system
+- not a generic admin template
+
+Use:
+- strong visual hierarchy
+- consistent spacing
+- section headers
+- professional labels
+- modular cards
+- progress steps
+- dashboard widgets
+
+==================================================
+30. CONTENT / PLACEHOLDER BEHAVIOR
+==================================================
+
+Since not all AI integrations may be connected yet:
+- create realistic placeholder cards and outputs
+- make all buttons functional in UI terms
+- show modal, panel, section, or placeholder result on click
+- keep architecture ready for future API integration
+
+For now, structure the app so each button can later be connected to real APIs.
+
+==================================================
+31. TECHNICAL DIRECTION
+==================================================
+
+Please refactor or improve the current project with:
+- reusable components
+- clear routing
+- modular page structure
+- sidebar layout
+- clean state management
+- scalable architecture for future AI agent integration
+
+If needed, create:
+- shared button components
+- dashboard cards
+- report cards
+- agent cards
+- progress tracker
+- modal components
+- form sections
+- upload components
+- gallery cards
+
+==================================================
+32. FINAL GOAL
+==================================================
+
+The final edited web app should look like a serious startup-level MVP for an AI architecture platform called Archi Hub.
+
+It must feel like a complete architectural workflow system, where the user moves from:
+site → context → client → program → planning → concept → massing → design → evaluation → visualization → presentation → export
+
+Again:
+Do not simplify this into a normal website.
+Build it as a real product dashboard with multiple pages and mission-based tools.
+
+Start by editing the existing app and upgrading the navigation, dashboard, pages, buttons, layout, and content structure accordingly.

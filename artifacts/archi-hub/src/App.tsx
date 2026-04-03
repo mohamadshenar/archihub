@@ -3,18 +3,34 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
-import { Layout } from "@/components/layout";
+import { GlobalLayout, ProjectLayout } from "@/components/layout";
 
 // Pages
+import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import ProjectsList from "@/pages/projects";
 import NewProject from "@/pages/project-new";
 import ProjectDetail from "@/pages/project-detail";
 import ProjectSite from "@/pages/project-site";
 import ProjectAnalysis from "@/pages/project-analysis";
-import ProjectQuestionnaire from "@/pages/project-questionnaire";
 import ProjectProgram from "@/pages/project-program";
-import ProjectImages from "@/pages/project-images";
+
+// New Pages (To be created)
+import ProjectContext from "@/pages/project-context";
+import ProjectBrief from "@/pages/project-brief";
+import ProjectPersonality from "@/pages/project-personality";
+import ProjectZoning from "@/pages/project-zoning";
+import ProjectConcept from "@/pages/project-concept";
+import ProjectMassing from "@/pages/project-massing";
+import ProjectExterior from "@/pages/project-exterior";
+import ProjectInterior from "@/pages/project-interior";
+import ProjectLandscape from "@/pages/project-landscape";
+import ProjectSustainability from "@/pages/project-sustainability";
+import ProjectRegulations from "@/pages/project-regulations";
+import ProjectCost from "@/pages/project-cost";
+import ProjectVisualization from "@/pages/project-visualization";
+import ProjectPresentation from "@/pages/project-presentation";
+import ProjectExport from "@/pages/project-export";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,25 +43,177 @@ const queryClient = new QueryClient({
 
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/projects" component={ProjectsList} />
-        <Route path="/projects/new" component={NewProject} />
-        <Route path="/projects/:id" component={ProjectDetail} />
-        <Route path="/projects/:id/site" component={ProjectSite} />
-        <Route path="/projects/:id/analysis" component={ProjectAnalysis} />
-        <Route path="/projects/:id/questionnaire" component={ProjectQuestionnaire} />
-        <Route path="/projects/:id/program" component={ProjectProgram} />
-        <Route path="/projects/:id/images" component={ProjectImages} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      <Route path="/" component={Landing} />
+      
+      <Route path="/dashboard">
+        {() => (
+          <GlobalLayout>
+            <Dashboard />
+          </GlobalLayout>
+        )}
+      </Route>
+      <Route path="/projects">
+        {() => (
+          <GlobalLayout>
+            <ProjectsList />
+          </GlobalLayout>
+        )}
+      </Route>
+      <Route path="/projects/new">
+        {() => (
+          <GlobalLayout>
+            <NewProject />
+          </GlobalLayout>
+        )}
+      </Route>
+
+      <Route path="/projects/:id">
+        {() => (
+          <ProjectLayout>
+            <ProjectDetail />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/site">
+        {() => (
+          <ProjectLayout>
+            <ProjectSite />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/analysis">
+        {() => (
+          <ProjectLayout>
+            <ProjectAnalysis />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/context">
+        {() => (
+          <ProjectLayout>
+            <ProjectContext />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/brief">
+        {() => (
+          <ProjectLayout>
+            <ProjectBrief />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/personality">
+        {() => (
+          <ProjectLayout>
+            <ProjectPersonality />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/program">
+        {() => (
+          <ProjectLayout>
+            <ProjectProgram />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/zoning">
+        {() => (
+          <ProjectLayout>
+            <ProjectZoning />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/concept">
+        {() => (
+          <ProjectLayout>
+            <ProjectConcept />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/massing">
+        {() => (
+          <ProjectLayout>
+            <ProjectMassing />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/exterior">
+        {() => (
+          <ProjectLayout>
+            <ProjectExterior />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/interior">
+        {() => (
+          <ProjectLayout>
+            <ProjectInterior />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/landscape">
+        {() => (
+          <ProjectLayout>
+            <ProjectLandscape />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/sustainability">
+        {() => (
+          <ProjectLayout>
+            <ProjectSustainability />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/regulations">
+        {() => (
+          <ProjectLayout>
+            <ProjectRegulations />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/cost">
+        {() => (
+          <ProjectLayout>
+            <ProjectCost />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/visualization">
+        {() => (
+          <ProjectLayout>
+            <ProjectVisualization />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/presentation">
+        {() => (
+          <ProjectLayout>
+            <ProjectPresentation />
+          </ProjectLayout>
+        )}
+      </Route>
+      <Route path="/projects/:id/export">
+        {() => (
+          <ProjectLayout>
+            <ProjectExport />
+          </ProjectLayout>
+        )}
+      </Route>
+
+      <Route>
+        {() => (
+          <GlobalLayout>
+            <NotFound />
+          </GlobalLayout>
+        )}
+      </Route>
+    </Switch>
   );
 }
 
 function App() {
-  // Apply dark mode by default for Archi Hub
   if (typeof document !== 'undefined') {
     document.documentElement.classList.add('dark');
   }

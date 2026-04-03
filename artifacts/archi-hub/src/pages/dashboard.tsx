@@ -6,7 +6,7 @@ import {
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, FolderOpen, Image as ImageIcon, Activity, MapPin } from "lucide-react";
+import { Building2, FolderOpen, Image as ImageIcon, Activity, MapPin, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ProjectProjectType, ProjectStatus } from "@workspace/api-client-react";
@@ -42,10 +42,16 @@ export default function Dashboard() {
   if (!summary) return null;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-        <p className="text-muted-foreground mt-2 font-mono text-sm">System status normal. Welcome back.</p>
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.2}} className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Studio Dashboard</h1>
+          <p className="text-muted-foreground mt-2 font-mono text-sm">System status normal. Welcome back.</p>
+        </div>
+        <div className="text-right max-w-sm">
+          <p className="italic text-sm text-muted-foreground">"Architecture is the learned game, correct and magnificent, of forms assembled in the light."</p>
+          <p className="text-xs font-mono mt-2 uppercase tracking-wider">— Le Corbusier</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -102,6 +108,47 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
+      {/* AI Agents Overview */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">AI Design Agents</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {["Site Agent", "Concept Agent", "Exterior Agent", "Interior Agent", "Landscape Agent", "Visualization Agent"].map((agent, i) => (
+            <Card key={i} className="bg-card">
+              <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
+                <span className="font-semibold text-sm">{agent}</span>
+                <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Ready
+                </span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Phase Progress */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Phase Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            {[
+              { name: "Discovery", count: summary.projectsByStatus?.[ProjectStatus.draft] || 0 },
+              { name: "Client", count: summary.projectsByStatus?.[ProjectStatus.site_selected] || 0 },
+              { name: "Intelligence", count: summary.projectsByStatus?.[ProjectStatus.analyzed] || 0 },
+              { name: "Design", count: summary.projectsByStatus?.[ProjectStatus.programmed] || 0 },
+              { name: "Evaluation", count: 0 },
+              { name: "Presentation", count: summary.projectsByStatus?.[ProjectStatus.images_generated] || 0 }
+            ].map((phase, i) => (
+              <div key={i} className="p-3 border border-border bg-muted/30 rounded-lg text-center">
+                <div className="text-2xl font-bold text-primary mb-1">{phase.count}</div>
+                <div className="text-xs font-mono uppercase text-muted-foreground">{phase.name}</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="lg:col-span-2">
           <Card className="h-full">
@@ -111,9 +158,9 @@ export default function Dashboard() {
             <CardContent>
               {recentProjects && recentProjects.length > 0 ? (
                 <div className="space-y-4">
-                  {recentProjects.map((project, i) => (
+                  {recentProjects.map((project) => (
                     <Link key={project.id} href={`/projects/${project.id}`}>
-                      <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer group">
+                      <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer group bg-card">
                         <div className="space-y-1">
                           <h4 className="font-medium group-hover:text-primary transition-colors">{project.name}</h4>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
@@ -121,7 +168,14 @@ export default function Dashboard() {
                             <span>{getTypeLabel(project.projectType)}</span>
                           </div>
                         </div>
-                        <Badge variant="outline" className="font-mono bg-background">{getStatusLabel(project.status)}</Badge>
+                        <div className="flex items-center gap-4">
+                          <Badge variant="outline" className={
+                            project.status === ProjectStatus.complete ? "border-green-500/50 text-green-500 bg-green-500/10" : 
+                            project.status === ProjectStatus.draft ? "border-muted-foreground/30 text-muted-foreground" :
+                            "border-primary/50 text-primary bg-primary/10"
+                          }>{getStatusLabel(project.status)}</Badge>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100 -ml-2" />
+                        </div>
                       </div>
                     </Link>
                   ))}
@@ -154,6 +208,6 @@ export default function Dashboard() {
           </Card>
         </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
