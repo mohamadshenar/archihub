@@ -163,7 +163,7 @@ export default function ProjectDetail() {
               </div>
               <div>
                 <span className="text-muted-foreground block mb-1">Number of Floors</span>
-                <span className="font-medium font-mono">{(project as { numFloors?: number }).numFloors ?? "Not set"}</span>
+                <span className="font-medium font-mono">{project.numFloors ?? "Not set"}</span>
               </div>
               <div>
                 <span className="text-muted-foreground block mb-1">Location</span>

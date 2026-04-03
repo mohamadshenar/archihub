@@ -19,6 +19,12 @@ export const ProjectProjectType = {
   industrial: "industrial",
   mixed_use: "mixed_use",
   landscape: "landscape",
+  tower_commercial: "tower_commercial",
+  tower_residential: "tower_residential",
+  hospitality: "hospitality",
+  civic: "civic",
+  healthcare: "healthcare",
+  education: "education",
 } as const;
 
 export type ProjectStatus = (typeof ProjectStatus)[keyof typeof ProjectStatus];
@@ -91,6 +97,7 @@ export interface Project {
   longitude?: number | null;
   address?: string | null;
   siteArea?: number | null;
+  numFloors?: number | null;
   siteAnalysis?: SiteAnalysis | null;
   questionnaire?: Questionnaire | null;
   program?: ArchitecturalProgram | null;
@@ -109,12 +116,19 @@ export const CreateProjectBodyProjectType = {
   industrial: "industrial",
   mixed_use: "mixed_use",
   landscape: "landscape",
+  tower_commercial: "tower_commercial",
+  tower_residential: "tower_residential",
+  hospitality: "hospitality",
+  civic: "civic",
+  healthcare: "healthcare",
+  education: "education",
 } as const;
 
 export interface CreateProjectBody {
   name: string;
   description?: string;
   projectType: CreateProjectBodyProjectType;
+  numFloors?: number;
 }
 
 export type UpdateProjectBodyProjectType =
@@ -127,6 +141,12 @@ export const UpdateProjectBodyProjectType = {
   industrial: "industrial",
   mixed_use: "mixed_use",
   landscape: "landscape",
+  tower_commercial: "tower_commercial",
+  tower_residential: "tower_residential",
+  hospitality: "hospitality",
+  civic: "civic",
+  healthcare: "healthcare",
+  education: "education",
 } as const;
 
 export interface UpdateProjectBody {
