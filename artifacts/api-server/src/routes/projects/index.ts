@@ -829,21 +829,36 @@ router.post("/projects/:id/concepts", async (req, res): Promise<void> => {
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
 
   const program = project.program as Record<string, unknown> | null;
-  const brief = project.clientBrief ?? "";
   const floors = (program?.floors as { functionName: string; areaPerFloor: number; floorRange: string }[] | undefined) ?? [];
   const functionNames = [...new Set(floors.map(f => f.functionName))].slice(0, 15);
+
+  // Read structured brief from metadata (saved by client brief page)
+  const conceptMeta = (project.metadata as Record<string, unknown>) ?? {};
+  const conceptBriefData = (conceptMeta.brief as { styles?: string[]; sustainability?: string[]; mustHave?: string; avoid?: string; budgetPriority?: number } | undefined) ?? {};
+  const conceptSelectedStyles = conceptBriefData.styles ?? [];
+  const CONCEPT_ALL_STYLES = ["Modern", "Minimal", "Industrial", "Organic", "Parametric", "Classical", "Brutalist", "Tropical"];
+  const conceptExcludedStyles = CONCEPT_ALL_STYLES.filter(s => !conceptSelectedStyles.includes(s));
 
   const completion = await openai.chat.completions.create({
     model: "gpt-5.2",
     max_completion_tokens: 4000,
     messages: [
-      { role: "system", content: "You are a creative architectural director. Generate distinct design concepts for architectural projects. Return ONLY valid JSON, no markdown." },
+      { role: "system", content: "You are a creative architectural director. Generate distinct design concepts that strictly follow the client's style preferences. Return ONLY valid JSON, no markdown." },
       { role: "user", content: `Generate 3 distinct architectural design concepts for a ${project.projectType} project named "${project.name}".
 
-Client brief: ${brief || "No brief provided."}
+Client brief: ${project.clientBrief || "No brief provided."}
 Key program elements: ${functionNames.length ? functionNames.join(", ") : "Not defined yet."}
 
-Each concept must be architecturally distinct — different in form, material logic, and spatial strategy. Vary from formal to informal, monolithic to fragmented, etc.
+═══ CLIENT STYLE PREFERENCES (MANDATORY) ═══
+SELECTED styles — concepts MUST align with: ${conceptSelectedStyles.length > 0 ? conceptSelectedStyles.join(", ") : "Contemporary / open to direction"}
+EXCLUDED styles — do NOT use these: ${conceptExcludedStyles.length > 0 ? conceptExcludedStyles.join(", ") : "None"}
+Must have: ${conceptBriefData.mustHave || "Not specified"}
+Avoid: ${conceptBriefData.avoid || "Not specified"}
+Sustainability: ${(conceptBriefData.sustainability ?? []).join(", ") || "Not specified"}
+
+CRITICAL: Each concept must reflect the SELECTED styles above. Do not propose concepts that draw from the EXCLUDED styles list.
+
+Each concept must be architecturally distinct — different in form, material logic, and spatial strategy.
 
 Return JSON:
 {
@@ -860,9 +875,9 @@ Return JSON:
   ]
 }
 
-- palette: 5 hex colors that represent this concept's material palette
-- tags: architectural keywords (e.g. "Brutalist", "Biophilic", "Parametric", "Monolithic", "Transparent")
-- Make concepts genuinely different from each other` },
+- palette: 5 hex colors representing this concept's material palette
+- tags: keywords matching the selected styles (e.g. if "Minimal" selected, use "Minimalist", "Clean Lines", etc — NOT "Brutalist" or "Industrial" if those are excluded)
+- Make all 3 concepts genuinely different from each other, but all within the approved style direction` },
     ],
   });
 
@@ -987,22 +1002,51 @@ router.post("/projects/:id/exterior", async (req, res) => {
   const massingOptions = (meta.massingOptions as { formType: string; siteCoverage: number; floors: number; title: string }[] | undefined) ?? [];
   const selectedMassing = massingOptions[0];
 
+  // Read structured brief data from metadata (saved by useProjectMission "brief" section)
+  const briefData = (meta.brief as {
+    styles?: string[];
+    sustainability?: string[];
+    mustHave?: string;
+    avoid?: string;
+    spaceTypes?: string;
+    adjacencies?: string;
+    specialActivities?: string;
+    budgetPriority?: number;
+  } | undefined) ?? {};
+
+  const selectedStyles = briefData.styles ?? [];
+  const ALL_STYLES = ["Modern", "Minimal", "Industrial", "Organic", "Parametric", "Classical", "Brutalist", "Tropical"];
+  const excludedStyles = ALL_STYLES.filter(s => !selectedStyles.includes(s));
+  const sustainabilityGoals = briefData.sustainability ?? [];
+
   const completion = await openai.chat.completions.create({
     model: "gpt-5.2",
     max_completion_tokens: 2500,
     messages: [
-      { role: "system", content: "You are a specialist architectural facade designer. Return ONLY valid JSON, no markdown." },
+      { role: "system", content: "You are a specialist architectural facade designer. Return ONLY valid JSON, no markdown. You must strictly follow the client's style preferences." },
       { role: "user", content: `Generate a complete facade design specification for a ${project.projectType} project.
 
 Project: ${project.name}
-Brief: ${project.clientBrief ?? "Not provided"}
+Project Brief: ${project.clientBrief ?? "Not provided"}
+
+═══ CLIENT STYLE PREFERENCES (MANDATORY) ═══
+SELECTED styles — your design MUST align with these: ${selectedStyles.length > 0 ? selectedStyles.join(", ") : "Contemporary / open to suggestion"}
+EXCLUDED styles — do NOT use any characteristics of: ${excludedStyles.length > 0 ? excludedStyles.join(", ") : "None"}
+
+IMPORTANT: If "Brutalist" is in the excluded list, you must NOT use board-formed concrete, raw concrete, heavy mass, or any Brutalist vocabulary. Choose materials and language that match the SELECTED styles only.
+
+Must have: ${briefData.mustHave || "Not specified"}
+Avoid: ${briefData.avoid || "Not specified"}
+Sustainability goals: ${sustainabilityGoals.length > 0 ? sustainabilityGoals.join(", ") : "Not specified"}
+Budget priority: ${briefData.budgetPriority ?? 50}% (0 = cost-conscious, 100 = quality-first)
+
 ${selectedMassing ? `Massing: ${selectedMassing.title} (${selectedMassing.formType}, ${selectedMassing.floors} floors, ${selectedMassing.siteCoverage}% site coverage)` : ""}
 ${selectedConcept ? `Design Concept: "${selectedConcept.title}" — ${selectedConcept.narrative}
-Style Tags: ${(selectedConcept.tags ?? []).join(", ")}
+Concept Style Tags: ${(selectedConcept.tags ?? []).join(", ")}
 Concept Materials: ${(selectedConcept.materials ?? []).join(", ") || "Not defined"}
 Formal Strategy: ${selectedConcept.formalStrategy ?? ""}` : ""}
 
-Generate a facade design that responds to the brief, massing, and concept. Return JSON:
+Generate a facade that is TRUE to the selected styles above. Return JSON:
 {
   "primaryMaterial": { "name": "...", "finish": "...", "description": "..." },
   "secondaryMaterial": { "name": "...", "finish": "...", "description": "..." },
@@ -1021,8 +1065,9 @@ Generate a facade design that responds to the brief, massing, and concept. Retur
   "westFacade": "..."
 }
 
-Recommendations should be specific, actionable facade strategies (solar shading, glazing ratios, material transitions, etc).
-WWR should be 25–65%. Color palette should be 4 realistic hex codes reflecting the material palette.` },
+Recommendations should be specific, actionable facade strategies.
+WWR should be 25–65%. Color palette should be 4 realistic hex codes reflecting the material palette.
+styleDirection must explicitly reference the selected styles (e.g. "Minimal glass curtain wall" not "Brutalist concrete mass").` },
     ],
   });
 
