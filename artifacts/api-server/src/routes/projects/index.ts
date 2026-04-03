@@ -705,6 +705,12 @@ router.post("/projects/:id/massing", async (req, res): Promise<void> => {
   const numFloors = (project as Record<string, unknown>).numFloors as number | null;
   const brief = project.clientBrief ?? "";
 
+  // Hard values derived from the actual project data — AI must NOT change these
+  const actualGFA   = Math.round(totalArea || 5000);
+  const actualFloors = numFloors ?? Math.max(2, Math.round(actualGFA / 800)); // fallback estimate
+  const floorHeight  = 3.5; // metres per floor (typical)
+  const actualHeight = Math.round(actualFloors * floorHeight);
+
   const completion = await openai.chat.completions.create({
     model: "gpt-5.2",
     max_completion_tokens: 3000,
@@ -712,57 +718,74 @@ router.post("/projects/:id/massing", async (req, res): Promise<void> => {
       { role: "system", content: "You are an expert architectural designer specialising in massing studies and building form optimisation. Return ONLY valid JSON, no markdown." },
       { role: "user", content: `Generate 3 distinct volumetric massing options for a ${project.projectType} building named "${project.name}".
 
-Project data:
-- Total program area: ~${Math.round(totalArea || 5000)} m²
-- Number of floors: ${numFloors ?? "Not specified"}
+FIXED project constraints (you MUST use these exact values — do NOT change them):
+- GFA: ${actualGFA} m² (locked — same across all options)
+- Floors: ${actualFloors} (locked — same across all options)
+- Height: ${actualHeight}m (locked — ${actualFloors} floors × ${floorHeight}m/floor)
 - Brief: ${brief || "Not provided"}
 
-Each option must explore a genuinely different formal strategy (e.g. tower, podium+tower, courtyard, split bar, stepped terrace, etc.).
+You ONLY decide:
+1. formType — choose one: tower, podium-tower, courtyard, bar, stepped, split, L-shape, U-shape
+2. title — short evocative name for the form (e.g. "Compact Tower", "Split Bar", "Courtyard Block")
+3. description — one sentence about the volumetric approach
+4. siteCoverage — integer percentage (30–80). Vary this significantly between options (e.g. 35%, 55%, 72%)
+5. setbackFront — metres (2–10)
+6. setbackSide — metres (2–8)
+7. pros — 2–3 advantages of this form
+8. cons — 1–2 disadvantages
 
 Return JSON:
 {
   "options": [
     {
       "key": "A",
-      "title": "Short form name (e.g. Vertical Tower)",
-      "formType": "tower|podium-tower|courtyard|bar|stepped|split|L-shape|U-shape",
-      "description": "One sentence describing the volumetric approach.",
-      "gfa": 4200,
-      "floors": 8,
-      "siteCoverage": 45,
-      "height": 32,
-      "far": 2.8,
+      "title": "...",
+      "formType": "...",
+      "description": "...",
+      "siteCoverage": 35,
       "setbackFront": 6,
       "setbackSide": 4,
-      "pros": ["Pro 1", "Pro 2"],
-      "cons": ["Con 1"]
+      "pros": ["...", "..."],
+      "cons": ["..."]
     }
   ]
 }
 
-Rules:
-- gfa in m² (integer)
-- floors: integer
-- siteCoverage: percentage integer (30–80)
-- height: metres integer
-- far: floor area ratio to 1 decimal
-- setbacks in metres
-- Make options genuinely different — vary coverage, height, floor count significantly` },
+CRITICAL: Do NOT include gfa, floors, height, or far in your response — the server will add the real values.
+Make each option genuinely different in form and siteCoverage.` },
     ],
   });
 
-  let options: unknown[];
+  let aiOptions: { key: string; title: string; formType: string; description: string; siteCoverage: number; setbackFront: number; setbackSide: number; pros: string[]; cons: string[] }[];
   try {
     let content = completion.choices[0]?.message?.content ?? "{}";
     content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
     const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
     if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
-    const parsed = JSON.parse(content) as { options: unknown[] };
-    options = parsed.options ?? [];
+    const parsed = JSON.parse(content) as { options: typeof aiOptions };
+    aiOptions = parsed.options ?? [];
   } catch (err) {
     console.error("Massing JSON parse failed:", err);
     res.status(500).json({ error: "Failed to parse AI response" }); return;
   }
+
+  // Merge AI form data with locked project values
+  const options = aiOptions.map((o, i) => ({
+    key:          o.key ?? String.fromCharCode(65 + i),
+    title:        o.title ?? `Option ${String.fromCharCode(65 + i)}`,
+    formType:     o.formType ?? "bar",
+    description:  o.description ?? "",
+    gfa:          actualGFA,
+    floors:       actualFloors,
+    height:       actualHeight,
+    siteCoverage: Math.min(80, Math.max(20, Math.round(o.siteCoverage ?? 50))),
+    // FAR = floors × site_coverage (footprint = GFA/floors; site_area = footprint/coverage → FAR = GFA/site_area = floors×coverage)
+    far:          parseFloat((actualFloors * ((Math.min(80, Math.max(20, o.siteCoverage ?? 50))) / 100)).toFixed(1)),
+    setbackFront: o.setbackFront ?? 5,
+    setbackSide:  o.setbackSide ?? 4,
+    pros:         o.pros ?? [],
+    cons:         o.cons ?? [],
+  }));
 
   const existing = await db.select({ metadata: projectsTable.metadata }).from(projectsTable).where(eq(projectsTable.id, id));
   const currentMeta = (existing[0]?.metadata as Record<string, unknown>) ?? {};

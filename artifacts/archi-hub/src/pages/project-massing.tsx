@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "wouter";
+import { useGetProject } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,32 +27,39 @@ interface MassingOption {
   cons?: string[];
 }
 
-const FALLBACK_OPTIONS: MassingOption[] = [
-  {
-    key: "A", title: "Vertical Tower", formType: "tower",
-    description: "A slender tower maximises views and minimises site footprint.",
-    gfa: 4200, floors: 12, siteCoverage: 35, height: 48, far: 3.2,
-    setbackFront: 6, setbackSide: 4,
-    pros: ["Minimal ground coverage", "Maximum views", "Efficient floor plate"],
-    cons: ["Requires structural core", "Higher wind loads"],
-  },
-  {
-    key: "B", title: "Podium + Tower", formType: "podium-tower",
-    description: "A broad podium anchors public uses at grade, with a residential tower rising above.",
-    gfa: 4050, floors: 8, siteCoverage: 60, height: 32, far: 2.4,
-    setbackFront: 3, setbackSide: 3,
-    pros: ["Active street edge", "Flexible program split", "Strong urban presence"],
-    cons: ["Complex structure at podium", "Higher cost"],
-  },
-  {
-    key: "C", title: "Courtyard Bar", formType: "courtyard",
-    description: "Two low bars frame a central courtyard, creating a human-scale public realm.",
-    gfa: 4300, floors: 5, siteCoverage: 70, height: 20, far: 1.8,
-    setbackFront: 5, setbackSide: 6,
-    pros: ["Excellent daylighting", "Protected outdoor space", "Low visual impact"],
-    cons: ["Largest footprint", "Lower FAR efficiency"],
-  },
+const FORM_FALLBACKS = [
+  { key: "A", title: "Vertical Tower",   formType: "tower",       siteCoverage: 35, setbackFront: 6, setbackSide: 4, pros: ["Minimal ground coverage", "Maximum views", "Efficient floor plate"], cons: ["Requires structural core", "Higher wind loads"] },
+  { key: "B", title: "Podium + Tower",   formType: "podium-tower",siteCoverage: 58, setbackFront: 3, setbackSide: 3, pros: ["Active street edge", "Flexible program split"], cons: ["Complex structure at podium"] },
+  { key: "C", title: "Courtyard Bar",    formType: "courtyard",   siteCoverage: 72, setbackFront: 5, setbackSide: 6, pros: ["Excellent daylighting", "Protected outdoor space"], cons: ["Largest footprint"] },
 ];
+
+interface FloorGroup { functionName: string; areaPerFloor: number; floorRange: string; }
+
+function parseFloorCount(range: string): number {
+  if (!range?.includes("-")) return 1;
+  const parseNum = (s: string) => {
+    s = s.trim().toUpperCase();
+    if (s === "G") return 0;
+    if (s.startsWith("B")) return -(parseInt(s.slice(1)) || 1);
+    return parseInt(s) || 0;
+  };
+  const parts = range.split("-");
+  return Math.abs(parseNum(parts[1]) - parseNum(parts[0])) + 1;
+}
+
+function buildFallbackOptions(gfa: number, floors: number): MassingOption[] {
+  const height = Math.round(floors * 3.5);
+  return FORM_FALLBACKS.map(f => ({
+    ...f,
+    description: f.title === "Vertical Tower"
+      ? "A slender form maximises views and minimises site footprint."
+      : f.title === "Podium + Tower"
+      ? "A broad podium anchors public uses at grade with an upper volume above."
+      : "Two bars frame a central courtyard creating a human-scale public realm.",
+    gfa, floors, height,
+    far: parseFloat((floors * (f.siteCoverage / 100)).toFixed(1)),
+  }));
+}
 
 // ─── SVG Massing Diagrams ─────────────────────────────────────────────────────
 
@@ -161,10 +169,32 @@ export default function ProjectMassing() {
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
 
-  const [options, setOptions]       = useState<MassingOption[]>(FALLBACK_OPTIONS);
-  const [selectedKey, setSelectedKey] = useState("A");
-  const [generating, setGenerating] = useState(false);
-  const [compareOpen, setCompareOpen] = useState(false);
+  const { data: project } = useGetProject(projectId);
+
+  const [savedOptions, setSavedOptions] = useState<MassingOption[] | null>(null);
+  const [selectedKey, setSelectedKey]   = useState("A");
+  const [generating, setGenerating]     = useState(false);
+  const [compareOpen, setCompareOpen]   = useState(false);
+  const [metaLoaded, setMetaLoaded]     = useState(false);
+
+  // Compute real values from project data
+  const { actualGFA, actualFloors, actualHeight } = useMemo(() => {
+    const prog = project?.program as Record<string, unknown> | null | undefined;
+    const floorRows = (prog?.floors as FloorGroup[] | undefined) ?? [];
+    const gfa = Math.round(
+      floorRows.reduce((s, f) => s + (f.areaPerFloor ?? 0) * parseFloorCount(f.floorRange), 0)
+    ) || 0;
+    const numFloors = (project as Record<string, unknown> | undefined)?.numFloors as number | null ?? null;
+    const fl = numFloors ?? (gfa > 0 ? Math.max(2, Math.round(gfa / 800)) : 0);
+    return { actualGFA: gfa, actualFloors: fl, actualHeight: Math.round(fl * 3.5) };
+  }, [project]);
+
+  // Derived options: saved AI options take priority; fallback computed from real project data
+  const options: MassingOption[] = useMemo(() => {
+    if (savedOptions) return savedOptions;
+    if (actualGFA > 0 && actualFloors > 0) return buildFallbackOptions(actualGFA, actualFloors);
+    return buildFallbackOptions(5000, 10); // last-resort placeholder
+  }, [savedOptions, actualGFA, actualFloors]);
 
   const loadMeta = useCallback(() => {
     if (!projectId) return;
@@ -172,13 +202,16 @@ export default function ProjectMassing() {
       .then(r => r.json())
       .then((meta: Record<string, unknown>) => {
         if (Array.isArray(meta.massingOptions) && meta.massingOptions.length > 0) {
-          setOptions(meta.massingOptions as MassingOption[]);
+          setSavedOptions(meta.massingOptions as MassingOption[]);
           setSelectedKey((meta.massingOptions[0] as MassingOption).key);
         }
-      });
+      })
+      .finally(() => setMetaLoaded(true));
   }, [projectId]);
 
   useEffect(() => { loadMeta(); }, [loadMeta]);
+  // Reset selected key when options change
+  useEffect(() => { if (options.length > 0) setSelectedKey(options[0].key); }, [options]);
 
   const handleGenerateIterations = async () => {
     setGenerating(true);
@@ -187,10 +220,10 @@ export default function ProjectMassing() {
       if (!res.ok) throw new Error("Failed");
       const data = await res.json() as { options: MassingOption[] };
       if (data.options?.length) {
-        setOptions(data.options);
+        setSavedOptions(data.options);
         setSelectedKey(data.options[0].key);
         setCompareOpen(false);
-        toast({ title: "Massing Iterations Generated", description: `${data.options.length} volumetric options calculated by AI.` });
+        toast({ title: "Massing Iterations Generated", description: `${data.options.length} volumetric options calculated. GFA: ${data.options[0].gfa.toLocaleString()} m² · ${data.options[0].floors} floors.` });
       }
     } catch {
       toast({ title: "Generation Failed", description: "Could not generate massing options.", variant: "destructive" });
