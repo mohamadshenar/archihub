@@ -429,47 +429,85 @@ router.post("/projects/:id/program", async (req, res): Promise<void> => {
     return;
   }
 
-  const questionnaire = project.questionnaire ? JSON.stringify(project.questionnaire) : "No questionnaire data";
+  const { totalArea, functions: userFunctions } = req.body as {
+    totalArea?: number;
+    functions?: Array<{ name: string; fromFloor: string; toFloor: string }>;
+  };
+
+  const numFloors = project.numFloors;
   const analysis = project.siteAnalysis ? JSON.stringify(project.siteAnalysis) : "No site analysis";
+
+  const floorsLine = numFloors ? `Total Floors: ${numFloors}` : "Total Floors: Not specified";
+  const areaLine = totalArea ? `Required Total Area: ${totalArea} sqm` : "Required Total Area: Not specified — estimate based on typology";
+
+  const functionsBlock = userFunctions && userFunctions.length > 0
+    ? `Requested floor functions:\n${userFunctions.map(f => `- Floors ${f.fromFloor} to ${f.toFloor}: ${f.name}`).join("\n")}`
+    : "No specific functions provided — generate appropriate ones for the typology.";
 
   const completion = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_completion_tokens: 3000,
+    max_completion_tokens: 4000,
     messages: [
       {
         role: "system",
         content:
-          "You are an expert architect creating architectural programs. Generate detailed, professional architectural programs based on project data. Return ONLY valid JSON with no markdown.",
+          "You are an expert architect creating detailed architectural programs. Generate precise, professional floor-by-floor architectural programs. Return ONLY valid JSON with no markdown or code blocks.",
       },
       {
         role: "user",
-        content: `Generate a comprehensive architectural program for:
+        content: `Generate a comprehensive floor-by-floor architectural program for:
 Project: ${project.name}
 Type: ${project.projectType}
-Questionnaire answers: ${questionnaire}
+${floorsLine}
+${areaLine}
+${functionsBlock}
 Site analysis: ${analysis}
+
+Rules:
+- Group consecutive floors that share the same function into a single floorRange entry (e.g. "6-30" or "B2-B1")
+- Use "G" for Ground floor, "B1", "B2" for basements, integers for above-ground floors
+- Calculate realistic areaPerFloor based on a typical floor plate for the typology
+- The sum of (areaPerFloor × number of floors in range) should approximate the required total area
+- Each floor group must have a clear description and list of key spaces
 
 Return a JSON object with exactly these fields:
 {
-  "totalArea": 2500,
-  "spaces": [
+  "totalArea": 35000,
+  "floors": [
     {
-      "name": "Space Name",
-      "area": 100,
-      "quantity": 1,
-      "priority": "essential",
-      "description": "Brief description"
+      "floorRange": "B2",
+      "functionName": "Parking — Level 2",
+      "areaPerFloor": 1500,
+      "description": "Underground parking with structural grid optimised for car bays.",
+      "keySpaces": ["Car parking bays (60)", "Mechanical plant room", "Emergency stairwells"]
+    },
+    {
+      "floorRange": "B1",
+      "functionName": "Parking — Level 1",
+      "areaPerFloor": 1500,
+      "description": "Upper basement parking with direct lift access to lobby.",
+      "keySpaces": ["Car parking bays (55)", "Bicycle storage", "Loading dock"]
+    },
+    {
+      "floorRange": "G",
+      "functionName": "Main Lobby & Retail",
+      "areaPerFloor": 1200,
+      "description": "Double-height grand lobby with retail activating the street edge.",
+      "keySpaces": ["Concierge reception", "Retail units x3", "Security post", "Lift lobby"]
     }
+  ],
+  "spaces": [
+    { "name": "Space Name", "area": 100, "quantity": 1, "priority": "essential", "description": "Brief description" }
   ],
   "designPrinciples": ["principle 1", "principle 2"],
   "materialPalette": ["material 1", "material 2"],
   "sustainabilityStrategies": ["strategy 1", "strategy 2"],
-  "estimatedBudget": "$500,000 - $750,000",
-  "timeline": "18-24 months",
-  "styleDirection": "Contemporary minimalist with industrial accents"
+  "estimatedBudget": "$50M - $75M",
+  "timeline": "36-48 months",
+  "styleDirection": "Contemporary high-rise with refined facade expression"
 }
-Priority values must be one of: essential, important, optional.
-Include 6-10 spaces, 4-6 design principles, 5-8 materials, 3-5 sustainability strategies.`,
+Priority values for spaces must be one of: essential, important, optional.
+Generate ALL floors from the bottom to top. Do not skip any floor or range.`,
       },
     ],
   });
@@ -480,42 +518,26 @@ Include 6-10 spaces, 4-6 design principles, 5-8 materials, 3-5 sustainability st
     program = JSON.parse(content);
   } catch {
     program = {
-      totalArea: 2800,
+      totalArea: totalArea ?? 2800,
+      floors: [
+        { floorRange: "B1", functionName: "Parking", areaPerFloor: 1200, description: "Underground parking level.", keySpaces: ["Car bays", "MEP room"] },
+        { floorRange: "G", functionName: "Lobby", areaPerFloor: 800, description: "Entrance lobby and reception.", keySpaces: ["Reception", "Lifts", "Security"] },
+        { floorRange: "1-5", functionName: "Commercial", areaPerFloor: 750, description: "Retail and commercial floors.", keySpaces: ["Retail", "Café", "Offices"] },
+      ],
       spaces: [
-        { name: "Entry Lobby", area: 120, quantity: 1, priority: "essential", description: "Grand entrance with reception" },
-        { name: "Main Living Area", area: 450, quantity: 1, priority: "essential", description: "Open-plan living and dining" },
-        { name: "Primary Bedroom Suite", area: 180, quantity: 1, priority: "essential", description: "Master suite with en-suite" },
-        { name: "Secondary Bedrooms", area: 120, quantity: 3, priority: "essential", description: "Comfortable sleeping quarters" },
-        { name: "Kitchen", area: 140, quantity: 1, priority: "essential", description: "Professional-grade kitchen" },
-        { name: "Home Office", area: 90, quantity: 1, priority: "important", description: "Dedicated workspace" },
-        { name: "Utility Room", area: 40, quantity: 1, priority: "essential", description: "Laundry and storage" },
-        { name: "Garage", area: 280, quantity: 1, priority: "important", description: "Double garage with storage" },
+        { name: "Lobby", area: 800, quantity: 1, priority: "essential", description: "Grand entrance" },
       ],
-      designPrinciples: [
-        "Seamless indoor-outdoor connection",
-        "Natural light optimization",
-        "Sustainable material selection",
-        "Spatial flexibility and adaptability",
-        "Biophilic design integration",
-      ],
-      materialPalette: [
-        "Exposed board-formed concrete",
-        "Engineered oak flooring",
-        "Corten steel accents",
-        "Aluminum-clad glazing systems",
-        "Natural stone cladding",
-        "Reclaimed wood details",
-      ],
-      sustainabilityStrategies: [
-        "Passive solar design with south-facing glazing",
-        "High-performance building envelope",
-        "Rainwater harvesting system",
-        "Solar photovoltaic array",
-      ],
-      estimatedBudget: "$850,000 - $1,200,000",
-      timeline: "24-30 months",
-      styleDirection: "Contemporary architecture with natural material warmth",
+      designPrinciples: ["Efficient vertical stacking", "Public realm activation", "Sustainable systems"],
+      materialPalette: ["High-performance glazing", "Precast concrete", "Aluminum cladding"],
+      sustainabilityStrategies: ["Solar shading", "Green roof", "Rainwater harvesting"],
+      estimatedBudget: "To be determined",
+      timeline: "36-48 months",
+      styleDirection: "Contemporary architecture",
     };
+  }
+
+  if (userFunctions) {
+    (program as Record<string, unknown>)._input = { totalArea, functions: userFunctions };
   }
 
   const [updated] = await db
