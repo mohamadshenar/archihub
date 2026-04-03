@@ -15,11 +15,11 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type ZoneType = "public" | "semi-public" | "private" | "service";
 
-const ZONE_META: Record<ZoneType, { label: string; stroke: string; fill: string; dot: string; desc: string }> = {
-  "public":      { label: "Public Zone",       stroke: "#3b82f6", fill: "rgba(59,130,246,0.18)",   dot: "bg-blue-500/80 border-blue-500",    desc: "High traffic, unrestricted access. Lobbies, galleries." },
-  "semi-public": { label: "Semi-Public Buffer", stroke: "#f59e0b", fill: "rgba(245,158,11,0.18)",   dot: "bg-amber-500/80 border-amber-500",  desc: "Controlled access, meeting rooms, amenity floors." },
-  "private":     { label: "Private Core",       stroke: "#10b981", fill: "rgba(16,185,129,0.18)",   dot: "bg-emerald-500/80 border-emerald-500", desc: "Restricted, secure. Offices, residential." },
-  "service":     { label: "Service",            stroke: "#64748b", fill: "rgba(100,116,139,0.18)", dot: "bg-slate-500/80 border-slate-500",  desc: "MEP, loading, storage, back-of-house." },
+const ZONE_META: Record<ZoneType, { label: string; stroke: string; fill: string; dot: string; desc: string; solid: string }> = {
+  "public":      { label: "Public Zone",       stroke: "#3b82f6", fill: "rgba(59,130,246,0.25)",   dot: "bg-blue-500/80 border-blue-500",    desc: "High traffic, unrestricted access. Lobbies, galleries.",    solid: "#2563eb" },
+  "semi-public": { label: "Semi-Public Buffer", stroke: "#f59e0b", fill: "rgba(245,158,11,0.22)",   dot: "bg-amber-500/80 border-amber-500",  desc: "Controlled access, meeting rooms, amenity floors.",        solid: "#d97706" },
+  "private":     { label: "Private Core",       stroke: "#10b981", fill: "rgba(16,185,129,0.25)",   dot: "bg-emerald-500/80 border-emerald-500", desc: "Restricted, secure. Offices, residential.",            solid: "#059669" },
+  "service":     { label: "Service",            stroke: "#64748b", fill: "rgba(100,116,139,0.22)", dot: "bg-slate-500/80 border-slate-500",  desc: "MEP, loading, storage, back-of-house.",                    solid: "#475569" },
 };
 
 interface ZoningNode {
@@ -131,74 +131,90 @@ function buildZoningFromProgram(floors: FloorGroup[]): ZoningData {
   return { nodes, edges };
 }
 
-function layoutNodes(nodes: ZoningNode[]): LayoutNode[] {
-  if (nodes.length === 0) return [];
+function formatBubbleLabel(id: string): string[] {
+  const words = id.split(/[\s\-–—\/,+&(]+/).filter(Boolean).map(w => w.replace(/\)$/, ""));
+  if (words.length === 1) return [words[0].toUpperCase().slice(0, 14)];
+  // up to 3 words, 2 lines
+  const line1 = words.slice(0, 2).join(" ").toUpperCase();
+  const line2 = words.length > 2 ? words.slice(2, 4).join(" ").toUpperCase() : "";
+  return line2 ? [line1, line2] : [line1];
+}
+
+const MAX_RADIAL_NODES = 12;
+
+function radialLayout(rawNodes: ZoningNode[], edges: ZoningEdge[]): LayoutNode[] {
+  if (rawNodes.length === 0) return [];
+  // Cap to top N by area to keep diagram legible
+  const nodes = rawNodes.length > MAX_RADIAL_NODES
+    ? [...rawNodes].sort((a, b) => b.totalArea - a.totalArea).slice(0, MAX_RADIAL_NODES)
+    : rawNodes;
   const maxArea = Math.max(...nodes.map(n => n.totalArea), 1);
 
-  // Adaptive radius — shrink when many nodes
-  const MAX_R = Math.max(22, Math.min(62, 350 / nodes.length));
-  const MIN_R = 16;
+  // Hub: prefer lobby/reception/public, otherwise largest area
+  const sorted = [...nodes].sort((a, b) => b.totalArea - a.totalArea);
+  const hubNode =
+    sorted.find(n => /lobby|entrance|reception|public.base|national|atrium/i.test(n.id)) ??
+    sorted[0];
 
-  const zoneGroups: Record<ZoneType, ZoningNode[]> = {
-    "public": [], "semi-public": [], "private": [], "service": [],
+  const periphery = nodes.filter(n => n.id !== hubNode.id);
+
+  // Build edge strength map relative to hub
+  const hubEdgeStrength = new Map<string, "Strong" | "Medium" | "Avoid">();
+  for (const e of edges) {
+    if (e.from === hubNode.id) hubEdgeStrength.set(e.to, e.strength);
+    if (e.to === hubNode.id) hubEdgeStrength.set(e.from, e.strength);
+  }
+
+  // Inner ring: "Strong" connection to hub; outer ring: everything else
+  const inner = periphery.filter(n => (hubEdgeStrength.get(n.id) ?? "Medium") === "Strong");
+  const outer = periphery.filter(n => (hubEdgeStrength.get(n.id) ?? "Medium") !== "Strong");
+
+  const CX = 390, CY = 275;
+  const INNER_R = inner.length <= 4 ? 150 : 165;
+  const OUTER_R = outer.length <= 4 ? 250 : 268;
+
+  function nodeRadius(n: ZoningNode, isHub = false): number {
+    const base = isHub ? 60 : 24;
+    const max = isHub ? 80 : 48;
+    return Math.max(base, Math.min(max, base + Math.sqrt(n.totalArea / maxArea) * (max - base)));
+  }
+
+  function placeRing(group: ZoningNode[], ringR: number, angleOffset = -Math.PI / 2): LayoutNode[] {
+    return group.map((node, i) => {
+      const angle = angleOffset + (i / group.length) * Math.PI * 2;
+      return {
+        ...node,
+        x: CX + Math.cos(angle) * ringR,
+        y: CY + Math.sin(angle) * ringR,
+        r: nodeRadius(node),
+        label: formatBubbleLabel(node.id)[0],
+      };
+    });
+  }
+
+  const hubLayout: LayoutNode = {
+    ...hubNode,
+    x: CX,
+    y: CY,
+    r: nodeRadius(hubNode, true),
+    label: formatBubbleLabel(hubNode.id)[0],
   };
-  for (const n of nodes) {
-    const z = (n.zone in zoneGroups ? n.zone : "semi-public") as ZoneType;
-    zoneGroups[z].push(n);
-  }
-
-  const spacing = MAX_R * 2 + 10;
-
-  function inStrip(group: ZoningNode[], cx: number, cy: number, axis: "v" | "h") {
-    const half = (group.length - 1) / 2;
-    return group.map((node, i) => {
-      const off = (i - half) * spacing;
-      return {
-        ...node,
-        x: axis === "h" ? cx + off : cx,
-        y: axis === "v" ? cy + off : cy,
-        r: Math.max(MIN_R, Math.min(MAX_R, MIN_R + Math.sqrt(node.totalArea / maxArea) * (MAX_R - MIN_R))),
-        label: node.id.split(/[\s\-–—\/,+]+/).slice(0, 2).join(" ").toUpperCase().slice(0, 15),
-      };
-    });
-  }
-
-  function inGrid(group: ZoningNode[], cx: number, cy: number) {
-    const cols = Math.min(4, Math.ceil(Math.sqrt(group.length * 1.5)));
-    const rows = Math.ceil(group.length / cols);
-    return group.map((node, i) => {
-      const row = Math.floor(i / cols);
-      const col = i % cols;
-      const rowLen = Math.min(cols, group.length - row * cols);
-      return {
-        ...node,
-        x: cx + (col - (rowLen - 1) / 2) * spacing,
-        y: cy + (row - (rows - 1) / 2) * spacing,
-        r: Math.max(MIN_R, Math.min(MAX_R, MIN_R + Math.sqrt(node.totalArea / maxArea) * (MAX_R - MIN_R))),
-        label: node.id.split(/[\s\-–—\/,+]+/).slice(0, 2).join(" ").toUpperCase().slice(0, 15),
-      };
-    });
-  }
 
   return [
-    ...inStrip(zoneGroups["public"],      125, 230, "v"),
-    ...inGrid (zoneGroups["semi-public"], 430, 195),
-    ...inStrip(zoneGroups["private"],     755, 220, "v"),
-    ...inStrip(zoneGroups["service"],     430, 430, "h"),
+    hubLayout,
+    ...placeRing(inner, INNER_R, -Math.PI / 2),
+    ...placeRing(outer, OUTER_R, -Math.PI / 3),
   ];
 }
 
-const STRENGTH_COLOR: Record<string, string> = {
-  Strong: "rgba(251,191,36,0.55)",
-  Medium: "rgba(148,163,184,0.3)",
-  Avoid: "rgba(239,68,68,0.22)",
-};
+// Calculate line endpoints clipped to bubble edges
+function linePoints(a: LayoutNode, b: LayoutNode) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  const nx = dx / dist, ny = dy / dist;
+  return { x1: a.x + nx * (a.r + 2), y1: a.y + ny * (a.r + 2), x2: b.x - nx * (b.r + 2), y2: b.y - ny * (b.r + 2) };
+}
 
-const STRENGTH_DASH: Record<string, string> = {
-  Strong: "6,3",
-  Medium: "4,4",
-  Avoid: "2,6",
-};
 
 export default function ProjectZoning() {
   const params = useParams();
@@ -233,7 +249,10 @@ export default function ProjectZoning() {
   }, [floors]);
 
   const activeZoning: ZoningData = zoning ?? derivedZoning;
-  const layoutNodes_memo = useMemo(() => layoutNodes(activeZoning.nodes), [activeZoning.nodes]);
+  const layoutNodes_memo = useMemo(
+    () => radialLayout(activeZoning.nodes, activeZoning.edges),
+    [activeZoning.nodes, activeZoning.edges]
+  );
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -332,91 +351,125 @@ export default function ProjectZoning() {
               No spatial data yet — generate a program first.
             </div>
           ) : (
-            <svg viewBox="0 0 880 520" className="w-full h-full" style={{ minHeight: 340 }}>
+            <svg viewBox="0 0 780 550" className="w-full h-full" style={{ minHeight: 380 }}>
               <defs>
-                <filter id="bubble-glow">
-                  <feGaussianBlur stdDeviation="5" result="coloredBlur" />
-                  <feMerge>
-                    <feMergeNode in="coloredBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
+                <filter id="hub-glow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="8" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="node-glow" x="-25%" y="-25%" width="150%" height="150%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
               </defs>
 
-              {/* Edges — only Strong (and Medium if AI-generated) to avoid spaghetti */}
-              {showCirculation && activeZoning.edges
-                .filter(e => zoning ? e.strength !== "Avoid" : e.strength === "Strong")
-                .map((edge, i) => {
-                  const a = nodes.find(n => n.id === edge.from);
-                  const b = nodes.find(n => n.id === edge.to);
-                  if (!a || !b) return null;
-                  return (
-                    <line
-                      key={i}
-                      x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                      stroke={STRENGTH_COLOR[edge.strength]}
-                      strokeWidth={edge.strength === "Strong" ? 2 : 1.2}
-                      strokeDasharray={STRENGTH_DASH[edge.strength]}
-                    />
-                  );
-                })}
+              {(() => {
+                if (nodes.length === 0) return null;
+                const hub = nodes[0]; // hub is always first
+                const periphery = nodes.slice(1);
 
-              {/* Avoid edges — only when AI-generated (show as faint red) */}
-              {showCirculation && zoning && activeZoning.edges
-                .filter(e => e.strength === "Avoid")
-                .map((edge, i) => {
-                  const a = nodes.find(n => n.id === edge.from);
-                  const b = nodes.find(n => n.id === edge.to);
-                  if (!a || !b) return null;
-                  return (
-                    <line
-                      key={`avoid-${i}`}
-                      x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                      stroke="rgba(239,68,68,0.18)"
-                      strokeWidth={1}
-                      strokeDasharray="2,7"
-                    />
-                  );
-                })}
+                // Build edge strength lookup
+                const edgeMap = new Map<string, "Strong" | "Medium" | "Avoid">();
+                for (const e of activeZoning.edges) {
+                  edgeMap.set(`${e.from}|${e.to}`, e.strength);
+                  edgeMap.set(`${e.to}|${e.from}`, e.strength);
+                }
 
-              {/* Bubbles */}
-              {nodes.map((node) => {
-                const meta = ZONE_META[node.zone];
                 return (
-                  <g key={node.id} transform={`translate(${node.x}, ${node.y})`} filter="url(#bubble-glow)">
-                    <circle
-                      r={node.r}
-                      fill={meta.fill}
-                      stroke={meta.stroke}
-                      strokeWidth={2}
-                    />
-                    {/* Area label inside bubble */}
-                    <text
-                      textAnchor="middle"
-                      y={-6}
-                      fontSize={node.r > 50 ? 11 : 9}
-                      fontFamily="Space Mono, monospace"
-                      fill="white"
-                      opacity={0.9}
-                    >
-                      {node.label.length > 12 ? node.label.slice(0, 12) : node.label}
-                    </text>
-                    {node.totalArea > 0 && (
-                      <text
-                        textAnchor="middle"
-                        y={8}
-                        fontSize={8}
-                        fontFamily="Space Mono, monospace"
-                        fill="rgba(255,255,255,0.55)"
-                      >
-                        {Math.round(node.totalArea / 1000) > 0
-                          ? `${Math.round(node.totalArea / 1000)}k sqm`
-                          : `${node.totalArea} sqm`}
-                      </text>
+                  <>
+                    {/* Hub-to-spoke connection lines */}
+                    {showCirculation && periphery.map((node, i) => {
+                      const strength = edgeMap.get(`${hub.id}|${node.id}`) ?? "Medium";
+                      if (strength === "Avoid") return null;
+                      const pts = linePoints(hub, node);
+                      const isStrong = strength === "Strong";
+                      return (
+                        <line
+                          key={`spoke-${i}`}
+                          x1={pts.x1} y1={pts.y1} x2={pts.x2} y2={pts.y2}
+                          stroke={isStrong ? "rgba(251,191,36,0.65)" : "rgba(148,163,184,0.35)"}
+                          strokeWidth={isStrong ? 2.5 : 1.2}
+                          strokeDasharray={isStrong ? "none" : "6 4"}
+                        />
+                      );
+                    })}
+
+                    {/* Secondary connections between periphery nodes (Strong only) */}
+                    {showCirculation && periphery.map((a, ai) =>
+                      periphery.slice(ai + 1).map((b, _bi) => {
+                        const strength = edgeMap.get(`${a.id}|${b.id}`);
+                        if (strength !== "Strong") return null;
+                        const pts = linePoints(a, b);
+                        return (
+                          <line
+                            key={`cross-${ai}-${_bi}`}
+                            x1={pts.x1} y1={pts.y1} x2={pts.x2} y2={pts.y2}
+                            stroke="rgba(251,191,36,0.25)"
+                            strokeWidth={1.5}
+                            strokeDasharray="4 3"
+                          />
+                        );
+                      })
                     )}
-                  </g>
+
+                    {/* Periphery nodes */}
+                    {periphery.map((node) => {
+                      const meta = ZONE_META[node.zone];
+                      const lines = formatBubbleLabel(node.id);
+                      const fs = node.r > 35 ? 10 : 8.5;
+                      const lineH = fs + 2;
+                      const totalH = lines.length * lineH;
+                      return (
+                        <g key={node.id} transform={`translate(${node.x},${node.y})`} filter="url(#node-glow)">
+                          <circle r={node.r} fill={meta.solid} stroke={meta.stroke} strokeWidth={1.5} opacity={0.9} />
+                          {lines.map((line, li) => (
+                            <text
+                              key={li}
+                              textAnchor="middle"
+                              y={-totalH / 2 + li * lineH + fs * 0.8}
+                              fontSize={fs}
+                              fontFamily="Space Mono, monospace"
+                              fontWeight="500"
+                              fill="white"
+                            >
+                              {line}
+                            </text>
+                          ))}
+                        </g>
+                      );
+                    })}
+
+                    {/* Hub node — center, largest, on top */}
+                    {(() => {
+                      const meta = ZONE_META[hub.zone];
+                      const lines = formatBubbleLabel(hub.id);
+                      const fs = hub.r > 65 ? 12 : 10;
+                      const lineH = fs + 3;
+                      const totalH = lines.length * lineH;
+                      return (
+                        <g transform={`translate(${hub.x},${hub.y})`} filter="url(#hub-glow)">
+                          <circle r={hub.r} fill={meta.solid} stroke={meta.stroke} strokeWidth={3} opacity={0.95} />
+                          {/* Outer ring accent */}
+                          <circle r={hub.r + 8} fill="none" stroke={meta.stroke} strokeWidth={1} opacity={0.3} strokeDasharray="4 3" />
+                          {lines.map((line, li) => (
+                            <text
+                              key={li}
+                              textAnchor="middle"
+                              y={-totalH / 2 + li * lineH + fs * 0.85}
+                              fontSize={fs}
+                              fontFamily="Space Mono, monospace"
+                              fontWeight="700"
+                              fill="white"
+                            >
+                              {line}
+                            </text>
+                          ))}
+                        </g>
+                      );
+                    })()}
+                  </>
                 );
-              })}
+              })()}
             </svg>
           )}
         </Card>
