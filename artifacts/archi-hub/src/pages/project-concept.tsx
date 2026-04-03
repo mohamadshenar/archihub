@@ -88,44 +88,54 @@ export default function ProjectConcept() {
   const [concepts, setConcepts]           = useState<Concept[]>(FALLBACK_CONCEPTS);
   const [selectedIdx, setSelectedIdx]     = useState(0);
   const [generating, setGenerating]       = useState(false);
+  const [saving, setSaving]               = useState(false);
   const [mode, setMode]                   = useState<"cards" | "moodboard" | "compare">("cards");
   const [metaLoaded, setMetaLoaded]       = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Always-current snapshot used by the debounced save
+  const conceptsRef = useRef<Concept[]>(FALLBACK_CONCEPTS);
 
-  // Save concepts array to metadata
-  const saveConcepts = useCallback((updated: Concept[]) => {
+  // Keep ref in sync with state (no side effects in updaters)
+  useEffect(() => { conceptsRef.current = concepts; }, [concepts]);
+
+  // Save concepts array to metadata — reads from ref so always fresh
+  const saveConcepts = useCallback(() => {
     if (!projectId) return;
+    setSaving(true);
     fetch(`${BASE}/api/projects/${projectId}/metadata`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section: "concepts", data: updated }),
-    }).catch(() => { /* silent — UI already updated */ });
-  }, [projectId]);
+      body: JSON.stringify({ section: "concepts", data: conceptsRef.current }),
+    })
+      .then(() => toast({ title: "Palette Saved", description: "Colour changes saved successfully." }))
+      .catch(() => toast({ title: "Save Failed", description: "Could not save palette changes.", variant: "destructive" }))
+      .finally(() => setSaving(false));
+  }, [projectId, toast]);
 
-  // Debounced palette colour change handler
+  // Pure state update — debounce schedules save outside the updater
   const handlePaletteChange = useCallback((conceptIdx: number, paletteIdx: number, newColor: string) => {
-    setConcepts(prev => {
-      const updated = prev.map((c, ci) =>
-        ci === conceptIdx
-          ? { ...c, palette: c.palette.map((col, pi) => pi === paletteIdx ? newColor : col) }
-          : c
-      );
-      // Debounce API save — commit 600ms after the last change
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => saveConcepts(updated), 600);
-      return updated;
-    });
+    setConcepts(prev => prev.map((c, ci) =>
+      ci === conceptIdx
+        ? { ...c, palette: c.palette.map((col, pi) => pi === paletteIdx ? newColor : col) }
+        : c
+    ));
+    // Debounce API save outside setState (no side effects inside updaters)
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(saveConcepts, 800);
   }, [saveConcepts]);
 
-  // Load saved concepts from metadata
+  // Load saved concepts — bypass cache so we always see the latest saved palette
   const loadMeta = useCallback(() => {
     if (!projectId) return;
-    fetch(`${BASE}/api/projects/${projectId}/metadata`)
+    fetch(`${BASE}/api/projects/${projectId}/metadata`, { cache: "no-store" })
       .then(r => r.json())
       .then((meta: Record<string, unknown>) => {
         if (Array.isArray(meta.concepts) && meta.concepts.length > 0) {
           setConcepts(meta.concepts as Concept[]);
         }
+        // Restore selected concept from localStorage
+        const stored = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
+        if (stored !== null) setSelectedIdx(Math.max(0, parseInt(stored) || 0));
       })
       .finally(() => setMetaLoaded(true));
   }, [projectId]);
@@ -190,6 +200,11 @@ export default function ProjectConcept() {
             <Layers className="w-4 h-4 mr-2" />
             Moodboard
           </Button>
+          {saving && (
+            <span className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin" /> Saving…
+            </span>
+          )}
           <Button onClick={handleGenerateNew} disabled={generating}>
             {generating
               ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
