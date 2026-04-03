@@ -97,6 +97,8 @@ export default function ProjectConcept() {
 
   const handleSelectConcept = (idx: number) => {
     setSelectedIdx(idx);
+    // Persist for cross-page use (massing generator reads this)
+    localStorage.setItem(`project-${projectId}-selectedConceptIdx`, String(idx));
     toast({ title: `Concept ${String.fromCharCode(65 + idx)} Selected`, description: `"${concepts[idx].title}" is now the active design concept.` });
   };
 

@@ -61,79 +61,175 @@ function buildFallbackOptions(gfa: number, floors: number): MassingOption[] {
   }));
 }
 
-// ─── SVG Massing Diagrams ─────────────────────────────────────────────────────
+// ─── Dynamic SVG Massing Diagram ─────────────────────────────────────────────
+// Elevation view — width driven by siteCoverage, height driven by floors
 
-function MassingDiagram({ formType, isSelected }: { formType: string; isSelected: boolean }) {
-  const c = isSelected ? "text-primary" : "text-muted-foreground";
-  const fillOp = isSelected ? "0.3" : "0.12";
-  const strokeOp = isSelected ? "1" : "0.5";
+function DynamicMassingDiagram({ formType, floors, siteCoverage, isSelected }: {
+  formType: string; floors: number; siteCoverage: number; isSelected: boolean;
+}) {
+  const fill    = isSelected ? "rgba(245,158,11,0.28)" : "rgba(100,116,139,0.13)";
+  const stroke  = isSelected ? "#f59e0b" : "#64748b";
+  const fillAlt = isSelected ? "rgba(245,158,11,0.15)" : "rgba(100,116,139,0.07)";
+  const sw      = isSelected ? 1.5 : 1;
 
-  const shapes: Record<string, JSX.Element> = {
-    tower: (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="80" y="30" width="40" height="140" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="72" y="150" width="56" height="20" fill="currentColor" fillOpacity="0.5" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1"/>
-        <line x1="100" y1="30" x2="130" y2="15" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1" strokeDasharray="2 2"/>
-        <line x1="120" y1="30" x2="130" y2="15" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1"/>
-        <line x1="130" y1="15" x2="130" y2="145" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1"/>
-      </svg>
-    ),
-    "podium-tower": (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="40" y="130" width="120" height="40" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="75" y="50" width="50" height="80" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <line x1="100" y1="50" x2="130" y2="35" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1" strokeDasharray="2 2"/>
-        <line x1="125" y1="50" x2="130" y2="35" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1"/>
-        <line x1="130" y1="35" x2="130" y2="130" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1"/>
-      </svg>
-    ),
-    courtyard: (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="30" y="60" width="60" height="100" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="110" y="60" width="60" height="100" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="30" y="40" width="140" height="20" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <line x1="87" y1="83" x2="113" y2="83" stroke="currentColor" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="3 3"/>
-      </svg>
-    ),
-    bar: (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="30" y="60" width="140" height="80" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <line x1="100" y1="60" x2="130" y2="45" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1" strokeDasharray="2 2"/>
-        <line x1="170" y1="60" x2="130" y2="45" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1"/>
-        <line x1="130" y1="45" x2="130" y2="140" stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1"/>
-      </svg>
-    ),
-    stepped: (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="30" y="130" width="140" height="40" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="30" y="95" width="100" height="35" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="30" y="60" width="60" height="35" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="30" y="30" width="30" height="30" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-      </svg>
-    ),
-    "L-shape": (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="30" y="80" width="60" height="90" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="30" y="30" width="140" height="50" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-      </svg>
-    ),
-    "U-shape": (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="30" y="50" width="45" height="120" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="125" y="50" width="45" height="120" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="30" y="50" width="140" height="40" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-      </svg>
-    ),
-    split: (
-      <svg viewBox="0 0 200 200" className={`w-28 h-28 ${c}`}>
-        <rect x="30" y="70" width="60" height="100" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <rect x="110" y="50" width="60" height="120" fill="currentColor" fillOpacity={fillOp} stroke="currentColor" strokeOpacity={strokeOp} strokeWidth="1.5"/>
-        <line x1="90" y1="120" x2="110" y2="110" stroke="currentColor" strokeOpacity="0.4" strokeWidth="1" strokeDasharray="3 3"/>
-      </svg>
-    ),
-  };
+  const coverage = Math.min(0.82, Math.max(0.22, siteCoverage / 100));
+  const hRatio   = Math.min(0.9,  Math.max(0.12, floors / 45));
 
-  return shapes[formType] ?? shapes["bar"];
+  const VW = 200, VH = 185;
+  const ground = VH - 18;
+  const maxW = 155, maxH = 138;
+  const W = Math.round(maxW * coverage);
+  const H = Math.round(maxH * hRatio);
+  const cx = VW / 2;
+  const x0 = cx - W / 2;   // left edge
+  const y0 = ground - H;   // top of building
+
+  // Perspective tick lines at top
+  const pers = (x: number, y: number) => (
+    <>
+      <line x1={x} y1={y} x2={x + 18} y2={y - 10} stroke={stroke} strokeWidth={0.6} strokeOpacity={0.4} />
+      <line x1={x + W} y1={y} x2={x + W + 18} y2={y - 10} stroke={stroke} strokeWidth={0.6} strokeOpacity={0.4} />
+      <line x1={x + 18} y1={y - 10} x2={x + W + 18} y2={y - 10} stroke={stroke} strokeWidth={0.6} strokeOpacity={0.4} />
+    </>
+  );
+
+  // Ground shadow
+  const shadow = <ellipse cx={cx} cy={ground + 5} rx={W * 0.52} ry={4} fill={stroke} fillOpacity={0.12} />;
+
+  // Ground line
+  const groundLine = <line x1={20} y1={ground} x2={VW - 20} y2={ground} stroke={stroke} strokeOpacity={0.2} strokeWidth={0.8} />;
+
+  const rect = (x: number, y: number, w: number, h: number, altFill = false) => (
+    <rect x={x} y={y} width={w} height={h} fill={altFill ? fillAlt : fill} stroke={stroke} strokeWidth={sw} rx={1} />
+  );
+
+  let shape: JSX.Element;
+
+  switch (formType) {
+    case "tower": {
+      const tW = Math.max(28, W * 0.38);
+      const tx = cx - tW / 2;
+      shape = <>{rect(tx, y0, tW, H)}{pers(tx, y0)}</>;
+      break;
+    }
+    case "podium-tower": {
+      const podH = Math.round(H * 0.28);
+      const towH = H - podH;
+      const tW   = Math.max(24, W * 0.4);
+      const tx   = cx - tW / 2;
+      shape = <>{rect(x0, ground - podH, W, podH)}{rect(tx, y0, tW, towH)}{pers(tx, y0)}</>;
+      break;
+    }
+    case "courtyard": {
+      const barW = Math.round(W * 0.38);
+      const barH = Math.round(H * 0.72);
+      const capH = Math.round(H * 0.22);
+      shape = (
+        <>
+          {rect(x0, ground - barH, barW, barH)}
+          {rect(x0 + W - barW, ground - barH, barW, barH)}
+          {rect(x0, ground - barH - capH, W, capH)}
+          {pers(x0, ground - barH - capH)}
+          <line x1={x0 + barW} y1={ground - barH} x2={x0 + W - barW} y2={ground - barH} stroke={stroke} strokeWidth={0.5} strokeOpacity={0.25} strokeDasharray="4 3" />
+        </>
+      );
+      break;
+    }
+    case "bar": {
+      const barH = Math.max(20, Math.round(H * 0.36));
+      shape = <>{rect(x0, ground - barH, W, barH)}{pers(x0, ground - barH)}</>;
+      break;
+    }
+    case "stepped": {
+      const steps = 4;
+      const stepH = Math.round(H / steps);
+      shape = (
+        <>
+          {Array.from({ length: steps }, (_, i) => {
+            const shrink = i * (W * 0.14);
+            const sw2 = W - shrink;
+            const sx = cx - sw2 / 2;
+            return <rect key={i} x={sx} y={ground - (steps - i) * stepH} width={sw2} height={stepH} fill={i > 0 ? fillAlt : fill} stroke={stroke} strokeWidth={sw} rx={1} />;
+          })}
+          {pers(cx - W * 0.15, y0)}
+        </>
+      );
+      break;
+    }
+    case "split": {
+      const tW = Math.max(22, Math.round(W * 0.38));
+      const aH = H;
+      const bH = Math.round(H * 0.76);
+      shape = (
+        <>
+          {rect(x0, ground - aH, tW, aH)}
+          {rect(x0 + W - tW, ground - bH, tW, bH)}
+          {pers(x0, ground - aH)}
+          <line x1={x0 + tW} y1={ground - Math.round(H * 0.5)} x2={x0 + W - tW} y2={ground - Math.round(bH * 0.5)} stroke={stroke} strokeWidth={0.5} strokeOpacity={0.2} strokeDasharray="4 3" />
+        </>
+      );
+      break;
+    }
+    case "L-shape": {
+      const lW = Math.round(W * 0.42);
+      shape = (
+        <>
+          {rect(x0, y0, lW, H)}
+          {rect(x0, ground - Math.round(H * 0.3), W, Math.round(H * 0.3))}
+          {pers(x0, y0)}
+        </>
+      );
+      break;
+    }
+    case "U-shape": {
+      const armW = Math.round(W * 0.28);
+      const capH = Math.round(H * 0.26);
+      shape = (
+        <>
+          {rect(x0, y0, armW, H)}
+          {rect(x0 + W - armW, y0, armW, H)}
+          {rect(x0, y0, W, capH, true)}
+          {pers(x0, y0)}
+        </>
+      );
+      break;
+    }
+    case "wrapped": {
+      const outerH = H;
+      const coreW = Math.round(W * 0.36);
+      const coreH = Math.round(H * 0.65);
+      shape = (
+        <>
+          {rect(x0, ground - outerH, W, Math.round(outerH * 0.18))}
+          {rect(x0, y0, Math.round(W * 0.18), outerH)}
+          {rect(x0 + W - Math.round(W * 0.18), y0, Math.round(W * 0.18), outerH)}
+          {rect(cx - coreW / 2, ground - coreH, coreW, coreH)}
+          {pers(cx - coreW / 2, ground - coreH)}
+        </>
+      );
+      break;
+    }
+    case "fragmented": {
+      const pieces = [
+        { x: x0,                            y: ground - H,                w: Math.round(W * 0.3), h: H },
+        { x: x0 + Math.round(W * 0.38),    y: ground - Math.round(H * 0.72), w: Math.round(W * 0.28), h: Math.round(H * 0.72) },
+        { x: x0 + Math.round(W * 0.72),    y: ground - Math.round(H * 0.5),  w: Math.round(W * 0.28), h: Math.round(H * 0.5) },
+      ];
+      shape = <>{pieces.map((p, i) => <rect key={i} x={p.x} y={p.y} width={p.w} height={p.h} fill={i > 0 ? fillAlt : fill} stroke={stroke} strokeWidth={sw} rx={1} />)}{pers(x0, ground - H)}</>;
+      break;
+    }
+    default: {
+      shape = <>{rect(x0, y0, W, H)}{pers(x0, y0)}</>;
+    }
+  }
+
+  return (
+    <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full h-full">
+      {groundLine}
+      {shadow}
+      {shape}
+    </svg>
+  );
 }
 
 // ─── Compare metric row helper ────────────────────────────────────────────────
@@ -216,14 +312,22 @@ export default function ProjectMassing() {
   const handleGenerateIterations = async () => {
     setGenerating(true);
     try {
-      const res = await fetch(`${BASE}/api/projects/${projectId}/massing`, { method: "POST" });
+      // Read selected concept from concept studio (saved in localStorage)
+      const storedIdx = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
+      const conceptIdx = storedIdx !== null ? parseInt(storedIdx) : 0;
+
+      const res = await fetch(`${BASE}/api/projects/${projectId}/massing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conceptIdx }),
+      });
       if (!res.ok) throw new Error("Failed");
       const data = await res.json() as { options: MassingOption[] };
       if (data.options?.length) {
         setSavedOptions(data.options);
         setSelectedKey(data.options[0].key);
         setCompareOpen(false);
-        toast({ title: "Massing Iterations Generated", description: `${data.options.length} volumetric options calculated. GFA: ${data.options[0].gfa.toLocaleString()} m² · ${data.options[0].floors} floors.` });
+        toast({ title: "Massing Iterations Generated", description: `${data.options.length} new forms · GFA: ${data.options[0].gfa.toLocaleString()} m² · ${data.options[0].floors} floors.` });
       }
     } catch {
       toast({ title: "Generation Failed", description: "Could not generate massing options.", variant: "destructive" });
@@ -444,8 +548,13 @@ export default function ProjectMassing() {
 
                   <CardContent className="flex-1 flex flex-col p-0">
                     {/* Diagram */}
-                    <div className="h-44 bg-black/20 flex items-center justify-center border-y border-border/30">
-                      <MassingDiagram formType={opt.formType} isSelected={isSelected} />
+                    <div className="h-44 bg-black/20 border-y border-border/30 overflow-hidden">
+                      <DynamicMassingDiagram
+                        formType={opt.formType}
+                        floors={opt.floors}
+                        siteCoverage={opt.siteCoverage}
+                        isSelected={isSelected}
+                      />
                     </div>
 
                     {/* Metrics */}

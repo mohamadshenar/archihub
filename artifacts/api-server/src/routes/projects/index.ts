@@ -707,9 +707,32 @@ router.post("/projects/:id/massing", async (req, res): Promise<void> => {
 
   // Hard values derived from the actual project data — AI must NOT change these
   const actualGFA   = Math.round(totalArea || 5000);
-  const actualFloors = numFloors ?? Math.max(2, Math.round(actualGFA / 800)); // fallback estimate
-  const floorHeight  = 3.5; // metres per floor (typical)
+  const actualFloors = numFloors ?? Math.max(2, Math.round(actualGFA / 800));
+  const floorHeight  = 3.5;
   const actualHeight = Math.round(actualFloors * floorHeight);
+
+  // Read the selected concept from metadata for style influence
+  const metaRow = await db.select({ metadata: projectsTable.metadata }).from(projectsTable).where(eq(projectsTable.id, id));
+  const meta = (metaRow[0]?.metadata as Record<string, unknown>) ?? {};
+  const concepts = (meta.concepts as { title: string; narrative: string; tags: string[]; formalStrategy?: string; materials?: string[]; precedents?: string[] }[] | undefined) ?? [];
+  const selectedConceptIdx = (typeof req.body?.conceptIdx === "number" ? req.body.conceptIdx : (meta.selectedConceptIdx as number | undefined)) ?? 0;
+  const selectedConcept = concepts[selectedConceptIdx] ?? concepts[0];
+
+  // Available form types — shuffle so each generation explores different combinations
+  const allFormTypes = ["tower", "podium-tower", "courtyard", "bar", "stepped", "split", "L-shape", "U-shape", "wrapped", "fragmented"];
+  const shuffled = allFormTypes.sort(() => Math.random() - 0.5).slice(0, 6); // pick 6 candidates, AI chooses 3
+
+  const conceptBlock = selectedConcept
+    ? `
+Style reference from selected concept "${selectedConcept.title}":
+- Design narrative: ${selectedConcept.narrative}
+- Style tags: ${(selectedConcept.tags ?? []).join(", ")}
+- Formal strategy: ${selectedConcept.formalStrategy ?? "Not defined"}
+- Materials: ${(selectedConcept.materials ?? []).join(", ") || "Not defined"}
+- Precedents: ${(selectedConcept.precedents ?? []).join(", ") || "Not defined"}
+
+Your 3 options MUST respond to this style. If the concept is "Brutalist" or "Monolithic", prefer compact heavy masses. If "Biophilic" or "Courtyard", prefer open forms with landscape integration. If "Parametric" or "Fragmented", prefer complex articulated massing. Use the concept vocabulary in your titles and descriptions.`
+    : "";
 
   const completion = await openai.chat.completions.create({
     model: "gpt-5.2",
@@ -718,20 +741,23 @@ router.post("/projects/:id/massing", async (req, res): Promise<void> => {
       { role: "system", content: "You are an expert architectural designer specialising in massing studies and building form optimisation. Return ONLY valid JSON, no markdown." },
       { role: "user", content: `Generate 3 distinct volumetric massing options for a ${project.projectType} building named "${project.name}".
 
-FIXED project constraints (you MUST use these exact values — do NOT change them):
-- GFA: ${actualGFA} m² (locked — same across all options)
-- Floors: ${actualFloors} (locked — same across all options)
-- Height: ${actualHeight}m (locked — ${actualFloors} floors × ${floorHeight}m/floor)
+FIXED project constraints (do NOT change these):
+- GFA: ${actualGFA} m² (same across all options)
+- Floors: ${actualFloors} (same across all options)
+- Height: ${actualHeight}m (${actualFloors} floors × ${floorHeight}m/floor)
 - Brief: ${brief || "Not provided"}
+${conceptBlock}
 
-You ONLY decide:
-1. formType — choose one: tower, podium-tower, courtyard, bar, stepped, split, L-shape, U-shape
-2. title — short evocative name for the form (e.g. "Compact Tower", "Split Bar", "Courtyard Block")
-3. description — one sentence about the volumetric approach
-4. siteCoverage — integer percentage (30–80). Vary this significantly between options (e.g. 35%, 55%, 72%)
+Available form types for this generation (choose 3 DIFFERENT ones from this list): ${shuffled.join(", ")}
+
+You decide for each option:
+1. formType — must be one of the types listed above
+2. title — evocative name influenced by the concept style
+3. description — one sentence connecting the form to the concept direction
+4. siteCoverage — integer percentage (25–78). Vary SIGNIFICANTLY between options (spread at least 20% apart)
 5. setbackFront — metres (2–10)
 6. setbackSide — metres (2–8)
-7. pros — 2–3 advantages of this form
+7. pros — 2–3 advantages
 8. cons — 1–2 disadvantages
 
 Return JSON:
@@ -751,8 +777,7 @@ Return JSON:
   ]
 }
 
-CRITICAL: Do NOT include gfa, floors, height, or far in your response — the server will add the real values.
-Make each option genuinely different in form and siteCoverage.` },
+CRITICAL: Do NOT include gfa, floors, height, or far — server computes these. Each option must have a DIFFERENT formType. siteCoverage must vary significantly across options.` },
     ],
   });
 
