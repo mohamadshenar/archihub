@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Compass, Box, Map, CheckCircle2, FileText, Image as ImageIcon, Building2 } from "lucide-react";
+import { ArrowRight, Compass, Box, Map, CheckCircle2, FileText, Image as ImageIcon, Building2, Lightbulb, Sofa, Trees } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Landing() {
