@@ -1,7 +1,7 @@
 import { useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Presentation, Maximize, Play, Download } from "lucide-react";
+import { Presentation, Maximize, Play, Download, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
