@@ -95,7 +95,7 @@ export default function NewProject() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Typology</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a project type" />
