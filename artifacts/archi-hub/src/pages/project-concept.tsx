@@ -163,8 +163,14 @@ export default function ProjectConcept() {
 
   const handleSelectConcept = (idx: number) => {
     setSelectedIdx(idx);
-    // Persist for cross-page use (massing generator reads this)
+    // Persist locally for quick reads
     localStorage.setItem(`project-${projectId}-selectedConceptIdx`, String(idx));
+    // Also persist to metadata so the API (exterior, massing, etc.) reads the correct concept
+    fetch(`${BASE}/api/projects/${projectId}/metadata`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section: "selectedConceptIdx", data: idx }),
+    }).catch(() => { /* non-critical, localStorage is the fallback */ });
     toast({ title: `Concept ${String.fromCharCode(65 + idx)} Selected`, description: `"${concepts[idx].title}" is now the active design concept.` });
   };
 

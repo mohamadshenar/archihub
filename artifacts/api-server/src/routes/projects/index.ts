@@ -1048,9 +1048,9 @@ Concept Materials: ${(selectedConcept.materials ?? []).join(", ") || "Not define
 Formal Strategy: ${selectedConcept.formalStrategy ?? ""}
 Concept Colour Palette: ${conceptPalette.length > 0 ? conceptPalette.join(", ") : "Not defined"}` : ""}
 
-${conceptPalette.length > 0 ? `═══ COLOUR PALETTE INSTRUCTION (MANDATORY) ═══
-The concept colour palette is: ${conceptPalette.join(", ")}
-Your "colorPalette" array MUST be derived from these exact colours. You may adjust saturation/lightness to suit real building materials, but the hue family of each swatch must remain faithful to the concept palette. Do NOT invent unrelated colours.` : ""}
+${conceptPalette.length > 0 ? `═══ COLOUR PALETTE INSTRUCTION (MANDATORY — DO NOT CHANGE) ═══
+The client has approved this exact concept colour palette: ${conceptPalette.join(", ")}
+You MUST output these exact hex values in the "colorPalette" field. Do NOT invent, substitute, or approximate different colours. If the palette has fewer than 4 swatches, repeat the last one to fill 4 slots. The palette is FIXED — only the material descriptions should reflect the styles.` : ""}
 
 Generate a facade that is TRUE to the selected styles above. Return JSON:
 {
@@ -1062,7 +1062,7 @@ Generate a facade that is TRUE to the selected styles above. Return JSON:
   "rValue": "R-3.8",
   "shadingStrategy": "...",
   "openingPattern": "...",
-  "colorPalette": ${conceptPalette.length > 0 ? `["derived from ${conceptPalette[0]}", "derived from ${conceptPalette[1] ?? conceptPalette[0]}", "derived from ${conceptPalette[2] ?? conceptPalette[0]}", "derived from ${conceptPalette[3] ?? conceptPalette[0]}"]` : '["#hex1", "#hex2", "#hex3", "#hex4"]'},
+  "colorPalette": ${conceptPalette.length > 0 ? JSON.stringify([conceptPalette[0], conceptPalette[1] ?? conceptPalette[0], conceptPalette[2] ?? conceptPalette[0], conceptPalette[3] ?? conceptPalette[0]]) : '["#hex1", "#hex2", "#hex3", "#hex4"]'},
   "styleDirection": "...",
   "recommendations": ["recommendation 1", "recommendation 2", "recommendation 3"],
   "northFacade": "...",
@@ -1073,7 +1073,7 @@ Generate a facade that is TRUE to the selected styles above. Return JSON:
 
 Recommendations should be specific, actionable facade strategies.
 WWR should be 25–65%.
-colorPalette must be 4 valid hex codes${conceptPalette.length > 0 ? ` derived from the concept palette [${conceptPalette.join(", ")}]` : " reflecting the material palette"}.
+colorPalette must be exactly: ${conceptPalette.length > 0 ? conceptPalette.slice(0, 4).join(", ") : "4 hex codes reflecting the material palette"}.
 styleDirection must explicitly reference the selected styles (e.g. "Minimal glass curtain wall" not "Brutalist concrete mass").` },
     ],
   });
@@ -1092,6 +1092,17 @@ styleDirection must explicitly reference the selected styles (e.g. "Minimal glas
 
   facade.generatedAt = new Date().toISOString();
   facade.recommendationsApplied = false;
+  // Hard-lock: always overwrite the AI's colorPalette with the concept palette
+  // so the facade colours are guaranteed to match the user's chosen concept.
+  if (conceptPalette.length > 0) {
+    const locked = [
+      conceptPalette[0],
+      conceptPalette[1] ?? conceptPalette[0],
+      conceptPalette[2] ?? conceptPalette[0],
+      conceptPalette[3] ?? conceptPalette[0],
+    ];
+    facade.colorPalette = locked;
+  }
 
   const updatedMeta = { ...meta, exterior: facade };
   await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
