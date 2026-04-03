@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Archi Hub API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: projects
+    description: Architectural project operations
+  - name: analysis
+    description: AI site analysis operations
+  - name: programs
+    description: Architectural program generation
+  - name: images
+    description: AI image generation for architectural projects
 paths:
   /healthz:
     get:
@@ -24,6 +32,256 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get project by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+    put:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{id}/site:
+    put:
+      operationId: updateProjectSite
+      tags: [projects]
+      summary: Update site location for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSiteBody"
+      responses:
+        "200":
+          description: Updated project with site
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}/questionnaire:
+    put:
+      operationId: updateProjectQuestionnaire
+      tags: [projects]
+      summary: Save questionnaire answers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionnaireBody"
+      responses:
+        "200":
+          description: Updated project with questionnaire
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}/analyze:
+    post:
+      operationId: runSiteAnalysis
+      tags: [analysis]
+      summary: Run AI site analysis for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Site analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteAnalysis"
+
+  /projects/{id}/program:
+    post:
+      operationId: generateProgram
+      tags: [programs]
+      summary: Generate architectural program
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Generated architectural program
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchitecturalProgram"
+
+  /projects/{id}/images:
+    get:
+      operationId: getProjectImages
+      tags: [images]
+      summary: Get all generated images for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of project images
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectImage"
+    post:
+      operationId: generateProjectImage
+      tags: [images]
+      summary: Generate an AI image for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateImageBody"
+      responses:
+        "201":
+          description: Generated image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectImage"
+
+  /projects/dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [projects]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /projects/recent:
+    get:
+      operationId: getRecentProjects
+      tags: [projects]
+      summary: Get recently updated projects
+      responses:
+        "200":
+          description: Recent projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +292,278 @@ components:
       required:
         - status
 
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        projectType:
+          type: string
+          enum: [residential, commercial, cultural, industrial, mixed_use, landscape]
+        status:
+          type: string
+          enum: [draft, site_selected, analyzed, programmed, images_generated, complete]
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        siteArea:
+          type: number
+          nullable: true
+        siteAnalysis:
+          $ref: "#/components/schemas/SiteAnalysis"
+          nullable: true
+        questionnaire:
+          $ref: "#/components/schemas/Questionnaire"
+          nullable: true
+        program:
+          $ref: "#/components/schemas/ArchitecturalProgram"
+          nullable: true
+        imageCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - projectType
+        - status
+        - imageCount
+        - createdAt
+        - updatedAt
+
+    CreateProjectBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        projectType:
+          type: string
+          enum: [residential, commercial, cultural, industrial, mixed_use, landscape]
+      required:
+        - name
+        - projectType
+
+    UpdateProjectBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        projectType:
+          type: string
+          enum: [residential, commercial, cultural, industrial, mixed_use, landscape]
+
+    UpdateSiteBody:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        siteArea:
+          type: number
+      required:
+        - latitude
+        - longitude
+
+    QuestionnaireBody:
+      type: object
+      properties:
+        answers:
+          type: object
+          additionalProperties: true
+      required:
+        - answers
+
+    Questionnaire:
+      type: object
+      properties:
+        answers:
+          type: object
+          additionalProperties: true
+      required:
+        - answers
+
+    SiteAnalysis:
+      type: object
+      properties:
+        climate:
+          type: string
+        soilType:
+          type: string
+        sunExposure:
+          type: string
+        windDirection:
+          type: string
+        topography:
+          type: string
+        surroundingContext:
+          type: string
+        opportunities:
+          type: array
+          items:
+            type: string
+        constraints:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        sustainabilityScore:
+          type: number
+        accessibilityNotes:
+          type: string
+        zoningInfo:
+          type: string
+      required:
+        - climate
+        - soilType
+        - sunExposure
+        - windDirection
+        - topography
+        - surroundingContext
+        - opportunities
+        - constraints
+        - recommendations
+        - sustainabilityScore
+
+    ArchitecturalProgram:
+      type: object
+      properties:
+        totalArea:
+          type: number
+        spaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgramSpace"
+        designPrinciples:
+          type: array
+          items:
+            type: string
+        materialPalette:
+          type: array
+          items:
+            type: string
+        sustainabilityStrategies:
+          type: array
+          items:
+            type: string
+        estimatedBudget:
+          type: string
+        timeline:
+          type: string
+        styleDirection:
+          type: string
+      required:
+        - totalArea
+        - spaces
+        - designPrinciples
+        - materialPalette
+        - sustainabilityStrategies
+        - styleDirection
+
+    ProgramSpace:
+      type: object
+      properties:
+        name:
+          type: string
+        area:
+          type: number
+        quantity:
+          type: integer
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [essential, important, optional]
+      required:
+        - name
+        - area
+        - quantity
+        - priority
+
+    ProjectImage:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        imageType:
+          type: string
+          enum: [exterior, interior, landscape]
+        prompt:
+          type: string
+        imageUrl:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - projectId
+        - imageType
+        - prompt
+        - imageUrl
+        - title
+        - createdAt
+
+    GenerateImageBody:
+      type: object
+      properties:
+        imageType:
+          type: string
+          enum: [exterior, interior, landscape]
+        title:
+          type: string
+        customPrompt:
+          type: string
+      required:
+        - imageType
+        - title
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalProjects:
+          type: integer
+        projectsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        projectsByType:
+          type: object
+          additionalProperties:
+            type: integer
+        totalImages:
+          type: integer
+        recentActivity:
+          type: array
+          items:
+            type: string
+      required:
+        - totalProjects
+        - projectsByStatus
+        - projectsByType
+        - totalImages
+        - recentActivity

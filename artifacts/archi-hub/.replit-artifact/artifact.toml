@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Archi Hub"
+version = "1.0.0"
+id = "artifacts/archi-hub"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20079
+
+[services.development]
+run = "pnpm --filter @workspace/archi-hub run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/archi-hub", "run", "build" ]
+publicDir = "artifacts/archi-hub/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20079"
+BASE_PATH = "/"
