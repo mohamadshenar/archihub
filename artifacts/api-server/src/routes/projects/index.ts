@@ -654,12 +654,23 @@ Rules:
     zoning = { nodes: functions.map(f => ({ id: f.name, zone: "semi-public", totalArea: f.totalArea })), edges: [] };
   }
 
-  // Save to metadata
+  // Save to metadata — append to history (keep last 10), set as current
+  const historyEntry = {
+    id: Date.now().toString(),
+    generatedAt: new Date().toISOString(),
+    data: zoning,
+  };
+
   const existing = await db.select({ metadata: projectsTable.metadata }).from(projectsTable).where(eq(projectsTable.id, id));
   const currentMeta = (existing[0]?.metadata as Record<string, unknown>) ?? {};
-  await db.update(projectsTable).set({ metadata: { ...currentMeta, zoning } }).where(eq(projectsTable.id, id));
+  const prevHistory = (currentMeta.zoningHistory as typeof historyEntry[]) ?? [];
+  const zoningHistory = [historyEntry, ...prevHistory].slice(0, 10);
 
-  res.json(zoning);
+  await db.update(projectsTable)
+    .set({ metadata: { ...currentMeta, zoning, zoningHistory } })
+    .where(eq(projectsTable.id, id));
+
+  res.json({ ...zoning, _entry: historyEntry });
 });
 
 router.get("/projects/:id/images", async (req, res): Promise<void> => {
