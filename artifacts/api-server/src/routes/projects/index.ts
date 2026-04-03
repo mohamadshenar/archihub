@@ -673,6 +673,73 @@ Rules:
   res.json({ ...zoning, _entry: historyEntry });
 });
 
+// ─── Concept Generation ───────────────────────────────────────────────────────
+
+router.post("/projects/:id/concepts", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const program = project.program as Record<string, unknown> | null;
+  const brief = project.clientBrief ?? "";
+  const floors = (program?.floors as { functionName: string; areaPerFloor: number; floorRange: string }[] | undefined) ?? [];
+  const functionNames = [...new Set(floors.map(f => f.functionName))].slice(0, 15);
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 4000,
+    messages: [
+      { role: "system", content: "You are a creative architectural director. Generate distinct design concepts for architectural projects. Return ONLY valid JSON, no markdown." },
+      { role: "user", content: `Generate 3 distinct architectural design concepts for a ${project.projectType} project named "${project.name}".
+
+Client brief: ${brief || "No brief provided."}
+Key program elements: ${functionNames.length ? functionNames.join(", ") : "Not defined yet."}
+
+Each concept must be architecturally distinct — different in form, material logic, and spatial strategy. Vary from formal to informal, monolithic to fragmented, etc.
+
+Return JSON:
+{
+  "concepts": [
+    {
+      "title": "Short evocative concept name (2-4 words)",
+      "narrative": "2-3 sentence design narrative explaining the core idea, material language, and spatial experience.",
+      "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
+      "palette": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"],
+      "materials": ["Material name 1", "Material name 2", "Material name 3"],
+      "formalStrategy": "One sentence describing the formal/massing strategy.",
+      "precedents": ["Reference building or architect 1", "Reference 2"]
+    }
+  ]
+}
+
+- palette: 5 hex colors that represent this concept's material palette
+- tags: architectural keywords (e.g. "Brutalist", "Biophilic", "Parametric", "Monolithic", "Transparent")
+- Make concepts genuinely different from each other` },
+    ],
+  });
+
+  let concepts: unknown[];
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    const parsed = JSON.parse(content) as { concepts: unknown[] };
+    concepts = parsed.concepts ?? [];
+  } catch (err) {
+    console.error("Concepts JSON parse failed:", err);
+    res.status(500).json({ error: "Failed to parse AI response" }); return;
+  }
+
+  const existing = await db.select({ metadata: projectsTable.metadata }).from(projectsTable).where(eq(projectsTable.id, id));
+  const currentMeta = (existing[0]?.metadata as Record<string, unknown>) ?? {};
+  await db.update(projectsTable).set({ metadata: { ...currentMeta, concepts } }).where(eq(projectsTable.id, id));
+
+  res.json({ concepts });
+});
+
 router.get("/projects/:id/images", async (req, res): Promise<void> => {
   const params = GetProjectImagesParams.safeParse(req.params);
   if (!params.success) {
