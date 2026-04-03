@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { eq, desc, sql } from "drizzle-orm";
 import { db, projectsTable, projectImagesTable } from "@workspace/db";
 import {
