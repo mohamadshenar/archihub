@@ -370,7 +370,10 @@ Return a JSON object with exactly these fields:
 
   let analysis: Record<string, unknown>;
   try {
-    const content = completion.choices[0]?.message?.content ?? "{}";
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb > 0 && lb !== -1) content = content.slice(fb, lb + 1);
     analysis = JSON.parse(content);
   } catch {
     analysis = {
@@ -446,7 +449,7 @@ router.post("/projects/:id/program", async (req, res): Promise<void> => {
 
   const completion = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_completion_tokens: 4000,
+    max_completion_tokens: 8000,
     messages: [
       {
         role: "system",
@@ -514,9 +517,18 @@ Generate ALL floors from the bottom to top. Do not skip any floor or range.`,
 
   let program: Record<string, unknown>;
   try {
-    const content = completion.choices[0]?.message?.content ?? "{}";
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    // If there's still preamble text, extract from first { to last }
+    const firstBrace = content.indexOf("{");
+    const lastBrace = content.lastIndexOf("}");
+    if (firstBrace > 0 && lastBrace !== -1) {
+      content = content.slice(firstBrace, lastBrace + 1);
+    }
     program = JSON.parse(content);
-  } catch {
+  } catch (err) {
+    console.error("Program JSON parse failed:", err);
     program = {
       totalArea: totalArea ?? 2800,
       floors: [
