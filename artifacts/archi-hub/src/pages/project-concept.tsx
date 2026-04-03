@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, Layers, SplitSquareHorizontal, CheckCircle2, Loader2, X } from "lucide-react";
+import { Lightbulb, Layers, SplitSquareHorizontal, CheckCircle2, Loader2, X, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
@@ -50,6 +50,36 @@ const FALLBACK_CONCEPTS: Concept[] = [
   },
 ];
 
+// ─── Editable palette swatch with hidden color picker ────────────────────────
+function PaletteSwatch({ color, size = "sm", onChange }: { color: string; size?: "sm" | "lg"; onChange?: (c: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const h = size === "lg" ? "h-16" : "h-5";
+  return (
+    <div
+      className={`relative flex-1 ${h} ${onChange ? "cursor-pointer group" : ""} rounded-sm overflow-hidden`}
+      style={{ backgroundColor: color }}
+      onClick={() => onChange && inputRef.current?.click()}
+      title={onChange ? `Click to edit (${color})` : color}
+    >
+      {onChange && (
+        <>
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <Pencil className="w-3 h-3 text-white drop-shadow" />
+          </div>
+          <input
+            ref={inputRef}
+            type="color"
+            value={color}
+            onChange={e => onChange(e.target.value)}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+            onClick={e => e.stopPropagation()}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectConcept() {
   const params = useParams();
   const projectId = parseInt(params.id || "0");
@@ -60,6 +90,32 @@ export default function ProjectConcept() {
   const [generating, setGenerating]       = useState(false);
   const [mode, setMode]                   = useState<"cards" | "moodboard" | "compare">("cards");
   const [metaLoaded, setMetaLoaded]       = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Save concepts array to metadata
+  const saveConcepts = useCallback((updated: Concept[]) => {
+    if (!projectId) return;
+    fetch(`${BASE}/api/projects/${projectId}/metadata`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section: "concepts", data: updated }),
+    }).catch(() => { /* silent — UI already updated */ });
+  }, [projectId]);
+
+  // Debounced palette colour change handler
+  const handlePaletteChange = useCallback((conceptIdx: number, paletteIdx: number, newColor: string) => {
+    setConcepts(prev => {
+      const updated = prev.map((c, ci) =>
+        ci === conceptIdx
+          ? { ...c, palette: c.palette.map((col, pi) => pi === paletteIdx ? newColor : col) }
+          : c
+      );
+      // Debounce API save — commit 600ms after the last change
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => saveConcepts(updated), 600);
+      return updated;
+    });
+  }, [saveConcepts]);
 
   // Load saved concepts from metadata
   const loadMeta = useCallback(() => {
@@ -217,12 +273,20 @@ export default function ProjectConcept() {
                       </tr>
                     )}
                     <tr>
-                      <td className="py-3 pr-4 text-xs font-mono text-muted-foreground">Palette</td>
+                      <td className="py-3 pr-4 text-xs font-mono text-muted-foreground align-top">
+                        Palette
+                        <div className="text-[9px] text-muted-foreground/50 mt-0.5">click to edit</div>
+                      </td>
                       {concepts.map((c, i) => (
                         <td key={i} className="py-3 px-3">
-                          <div className="flex h-5 rounded overflow-hidden w-28">
+                          <div className="flex h-6 rounded overflow-hidden w-32 gap-px">
                             {c.palette.map((col, ci) => (
-                              <div key={ci} className="flex-1" style={{ backgroundColor: col }} />
+                              <PaletteSwatch
+                                key={ci}
+                                color={col}
+                                size="sm"
+                                onChange={newC => handlePaletteChange(i, ci, newC)}
+                              />
                             ))}
                           </div>
                         </td>
@@ -281,13 +345,29 @@ export default function ProjectConcept() {
               </CardHeader>
               <CardContent className="space-y-6">
 
-                {/* Hero palette */}
+                {/* Hero palette — editable */}
                 <div>
-                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Colour Palette</p>
-                  <div className="grid grid-cols-5 gap-2 h-24">
+                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                    Colour Palette
+                    <span className="text-[9px] text-muted-foreground/50 normal-case font-normal">· click to edit</span>
+                  </p>
+                  <div className="grid grid-cols-5 gap-2">
                     {selected.palette.map((col, i) => (
-                      <div key={i} className="rounded-lg flex flex-col items-center justify-end pb-2" style={{ backgroundColor: col }}>
-                        <span className="text-[9px] font-mono text-white/70 drop-shadow">{col.toUpperCase()}</span>
+                      <div
+                        key={i}
+                        className="relative group cursor-pointer rounded-lg overflow-hidden h-24 flex flex-col items-center justify-end pb-2"
+                        style={{ backgroundColor: col }}
+                      >
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-all flex items-center justify-center">
+                          <Pencil className="w-4 h-4 text-white drop-shadow opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <span className="relative z-10 text-[9px] font-mono text-white/80 drop-shadow">{col.toUpperCase()}</span>
+                        <input
+                          type="color"
+                          value={col}
+                          onChange={e => handlePaletteChange(selectedIdx, i, e.target.value)}
+                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                        />
                       </div>
                     ))}
                   </div>
@@ -425,10 +505,18 @@ export default function ProjectConcept() {
                         </div>
 
                         <div>
-                          <h4 className="text-[10px] font-mono text-muted-foreground uppercase mb-1.5">Palette</h4>
-                          <div className="flex h-5 rounded overflow-hidden">
+                          <h4 className="text-[10px] font-mono text-muted-foreground uppercase mb-1.5 flex items-center gap-1">
+                            Palette
+                            <span className="text-[9px] text-muted-foreground/50 font-normal normal-case">· click to edit</span>
+                          </h4>
+                          <div className="flex h-5 rounded overflow-hidden gap-px">
                             {concept.palette.map((color, i) => (
-                              <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+                              <PaletteSwatch
+                                key={i}
+                                color={color}
+                                size="sm"
+                                onChange={c => handlePaletteChange(idx, i, c)}
+                              />
                             ))}
                           </div>
                         </div>
