@@ -972,4 +972,98 @@ router.post("/projects/:id/images", async (req, res): Promise<void> => {
   });
 });
 
+// ─── POST /projects/:id/exterior — AI Facade Design ─────────────────────────
+router.post("/:id/exterior", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const concepts = (meta.concepts as { title: string; narrative: string; tags: string[]; materials?: string[]; formalStrategy?: string }[] | undefined) ?? [];
+  const selectedConceptIdx = (meta.selectedConceptIdx as number | undefined) ?? 0;
+  const selectedConcept = concepts[selectedConceptIdx] ?? concepts[0];
+  const massingOptions = (meta.massingOptions as { formType: string; siteCoverage: number; floors: number; title: string }[] | undefined) ?? [];
+  const selectedMassing = massingOptions[0];
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 2500,
+    messages: [
+      { role: "system", content: "You are a specialist architectural facade designer. Return ONLY valid JSON, no markdown." },
+      { role: "user", content: `Generate a complete facade design specification for a ${project.projectType} project.
+
+Project: ${project.name}
+Brief: ${project.clientBrief ?? "Not provided"}
+${selectedMassing ? `Massing: ${selectedMassing.title} (${selectedMassing.formType}, ${selectedMassing.floors} floors, ${selectedMassing.siteCoverage}% site coverage)` : ""}
+${selectedConcept ? `Design Concept: "${selectedConcept.title}" — ${selectedConcept.narrative}
+Style Tags: ${(selectedConcept.tags ?? []).join(", ")}
+Concept Materials: ${(selectedConcept.materials ?? []).join(", ") || "Not defined"}
+Formal Strategy: ${selectedConcept.formalStrategy ?? ""}` : ""}
+
+Generate a facade design that responds to the brief, massing, and concept. Return JSON:
+{
+  "primaryMaterial": { "name": "...", "finish": "...", "description": "..." },
+  "secondaryMaterial": { "name": "...", "finish": "...", "description": "..." },
+  "glazing": { "type": "...", "tint": "...", "description": "..." },
+  "wwr": 42,
+  "thermalPerformance": "Target Met",
+  "rValue": "R-3.8",
+  "shadingStrategy": "...",
+  "openingPattern": "...",
+  "colorPalette": ["#hex1", "#hex2", "#hex3", "#hex4"],
+  "styleDirection": "...",
+  "recommendations": ["recommendation 1", "recommendation 2", "recommendation 3"],
+  "northFacade": "...",
+  "southFacade": "...",
+  "eastFacade": "...",
+  "westFacade": "..."
+}
+
+Recommendations should be specific, actionable facade strategies (solar shading, glazing ratios, material transitions, etc).
+WWR should be 25–65%. Color palette should be 4 realistic hex codes reflecting the material palette.` },
+    ],
+  });
+
+  let facade: Record<string, unknown>;
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    facade = JSON.parse(content) as Record<string, unknown>;
+  } catch (err) {
+    console.error("Exterior JSON parse failed:", err);
+    res.status(500).json({ error: "Failed to parse AI response" }); return;
+  }
+
+  facade.generatedAt = new Date().toISOString();
+  facade.recommendationsApplied = false;
+
+  const updatedMeta = { ...meta, exterior: facade };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+
+  res.json({ exterior: facade });
+});
+
+// ─── PATCH /projects/:id/exterior/apply — Apply recommendations ──────────────
+router.patch("/:id/exterior/apply", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const exterior = (meta.exterior as Record<string, unknown>) ?? {};
+  exterior.recommendationsApplied = true;
+  exterior.appliedAt = new Date().toISOString();
+
+  const updatedMeta = { ...meta, exterior };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+
+  res.json({ success: true, appliedAt: exterior.appliedAt });
+});
+
 export default router;
