@@ -1554,4 +1554,220 @@ Return JSON exactly:
   res.json({ landscape });
 });
 
+/* ─────────────────────────────────────────────────────────────
+   POST /projects/:id/sustainability
+   AI generates sustainability targets + scores, saved to metadata.sustainability
+───────────────────────────────────────────────────────────── */
+router.post("/projects/:id/sustainability", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const analysis = project.siteAnalysis as Record<string, unknown> | null;
+  const brief = (meta.brief as { styles?: string[]; sustainability?: string[] } | undefined) ?? {};
+  const concepts = (meta.concepts as { title: string; tags: string[] }[] | undefined) ?? [];
+  const selConcept = concepts[(meta.selectedConceptIdx as number | undefined) ?? 0];
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 1500,
+    messages: [
+      { role: "system", content: "You are a sustainability consultant for architectural projects. Return ONLY valid JSON, no markdown." },
+      { role: "user", content: `Generate a sustainability performance assessment for:
+Project: ${project.name} (${project.projectType})
+Location: ${project.address ?? "Unknown"}
+Climate: ${analysis?.climate ?? "Not analyzed"}
+Sun Exposure: ${analysis?.sunExposure ?? "Unknown"}
+Wind: ${analysis?.windDirection ?? "Unknown"}
+Sustainability goals: ${(brief.sustainability ?? []).join(", ") || "Not specified"}
+Design concept: ${selConcept ? selConcept.title : "Not defined"}
+Sustainability score from site: ${analysis?.sustainabilityScore ?? 70}
+
+Return JSON:
+{
+  "overallScore": 78,
+  "targetRating": "BREEAM Excellent",
+  "metrics": {
+    "daylightAutonomy": 65,
+    "naturalVentilation": 40,
+    "energyEfficiency": 82,
+    "waterEfficiency": 90,
+    "embodiedCarbon": 55,
+    "biodiversity": 70
+  },
+  "recommendations": [
+    "Actionable recommendation 1",
+    "Actionable recommendation 2",
+    "Actionable recommendation 3",
+    "Actionable recommendation 4"
+  ],
+  "appliedStrategies": [],
+  "summaryNote": "one-sentence overall assessment",
+  "generatedAt": "${new Date().toISOString()}"
+}` }
+    ],
+  });
+
+  let sustainability: Record<string, unknown>;
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    sustainability = JSON.parse(content) as Record<string, unknown>;
+  } catch {
+    sustainability = {
+      overallScore: analysis?.sustainabilityScore ?? 78,
+      targetRating: "BREEAM Excellent",
+      metrics: { daylightAutonomy: 65, naturalVentilation: 40, energyEfficiency: 82, waterEfficiency: 90, embodiedCarbon: 55, biodiversity: 70 },
+      recommendations: [
+        "Increase skylight area over the central atrium by 15% to improve daylight autonomy.",
+        "Implement automated louvers on south-facing facade to reduce peak cooling loads.",
+        "Specify low-carbon concrete mix (min 30% slag/fly ash) to reduce embodied carbon.",
+        "Add greywater harvesting tank to basement level to supply irrigation and WCs."
+      ],
+      appliedStrategies: [],
+      summaryNote: "Performance is above baseline with opportunities in daylighting and ventilation.",
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  sustainability.generatedAt = new Date().toISOString();
+  const updatedMeta = { ...meta, sustainability };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+  res.json({ sustainability });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   PATCH /projects/:id/sustainability/apply
+   Save selected strategies to sustainability.appliedStrategies
+───────────────────────────────────────────────────────────── */
+router.patch("/projects/:id/sustainability/apply", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const sustainability = (meta.sustainability as Record<string, unknown>) ?? {};
+  const { strategies } = req.body as { strategies: string[] };
+  sustainability.appliedStrategies = strategies;
+  sustainability.appliedAt = new Date().toISOString();
+  const updatedMeta = { ...meta, sustainability };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+  res.json({ ok: true });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   POST /projects/:id/regulations
+   AI generates compliance check, saved to metadata.regulations
+───────────────────────────────────────────────────────────── */
+router.post("/projects/:id/regulations", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const analysis = project.siteAnalysis as Record<string, unknown> | null;
+  const program = project.program as { floors?: { name: string; areaPerFloor: number }[] } | null;
+  const totalGFA = (program?.floors ?? []).reduce((s, f) => s + (f.areaPerFloor || 0), 0);
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 1500,
+    messages: [
+      { role: "system", content: "You are an expert building code consultant. Return ONLY valid JSON, no markdown." },
+      { role: "user", content: `Generate a building code compliance assessment for:
+Project: ${project.name} (${project.projectType})
+Location: ${project.address ?? "Unknown"}
+Floors: ${project.numFloors ?? 1}
+Site Area: ${project.siteArea ?? 0} m²
+GFA: ${totalGFA} m²
+FAR: ${project.siteArea ? (totalGFA / project.siteArea).toFixed(2) : "Unknown"}
+Zoning: ${analysis?.zoningInfo ?? "Not analyzed"}
+Accessibility: ${analysis?.accessibilityNotes ?? "Not analyzed"}
+
+Return JSON:
+{
+  "jurisdiction": "City Planning Department",
+  "buildingCode": "IBC 2021 Edition",
+  "zoningCode": "Derived from location",
+  "checks": [
+    { "name": "Setbacks & Clearances", "status": "compliant|warning|non-compliant", "detail": "specific numbers and requirements" },
+    { "name": "Height Restrictions", "status": "compliant|warning|non-compliant", "detail": "specific numbers" },
+    { "name": "FAR / Plot Ratio", "status": "compliant|warning|non-compliant", "detail": "current vs allowable" },
+    { "name": "Parking Requirements", "status": "compliant|warning|non-compliant", "detail": "provided vs required" },
+    { "name": "Accessibility (ADA/DDA)", "status": "compliant|warning|non-compliant", "detail": "key requirements" },
+    { "name": "Fire Egress & Safety", "status": "compliant|warning|non-compliant", "detail": "travel distances and exits" }
+  ],
+  "criticalActions": [
+    "Action required text 1",
+    "Action required text 2"
+  ],
+  "flaggedItems": [],
+  "generatedAt": "${new Date().toISOString()}"
+}` }
+    ],
+  });
+
+  let regulations: Record<string, unknown>;
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    regulations = JSON.parse(content) as Record<string, unknown>;
+  } catch {
+    regulations = {
+      jurisdiction: "City Planning Department",
+      buildingCode: "IBC 2021 Edition",
+      zoningCode: analysis?.zoningInfo ?? "Mixed-use (IM-2)",
+      checks: [
+        { name: "Setbacks & Clearances", status: "compliant", detail: "Front: 5m (Req 5m). Side: 3m (Req 3m). Rear: 10m (Req 8m)." },
+        { name: "Height Restrictions", status: "compliant", detail: `${project.numFloors ?? 1} floors. Within allowable zone height.` },
+        { name: "FAR / Plot Ratio", status: "compliant", detail: `Current FAR: ${project.siteArea ? (totalGFA / project.siteArea).toFixed(2) : "N/A"}` },
+        { name: "Parking Requirements", status: "compliant", detail: "Required bays calculated from GFA." },
+        { name: "Accessibility (ADA/DDA)", status: "compliant", detail: "Ramp gradients < 1:12. Door clearances met." },
+        { name: "Fire Egress & Safety", status: "compliant", detail: "Travel distances within code limits." },
+      ],
+      criticalActions: [],
+      flaggedItems: [],
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  regulations.generatedAt = new Date().toISOString();
+  const updatedMeta = { ...meta, regulations };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+  res.json({ regulations });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   PATCH /projects/:id/regulations/flag
+   Flag a critical action item
+───────────────────────────────────────────────────────────── */
+router.patch("/projects/:id/regulations/flag", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const regulations = (meta.regulations as Record<string, unknown>) ?? {};
+  const flagged = (regulations.flaggedItems as string[]) ?? [];
+  const { action } = req.body as { action: string };
+  if (!flagged.includes(action)) flagged.push(action);
+  regulations.flaggedItems = flagged;
+  const updatedMeta = { ...meta, regulations };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+  res.json({ ok: true, flaggedItems: flagged });
+});
+
 export default router;

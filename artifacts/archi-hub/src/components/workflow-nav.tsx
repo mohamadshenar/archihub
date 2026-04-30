@@ -40,7 +40,7 @@ export function WorkflowNav({ projectId }: WorkflowNavProps) {
     m.path ? `${base}/${m.path}` : base;
 
   return (
-    <div className="flex items-center justify-between pt-8 mt-8 border-t border-border">
+    <div data-print-hide className="flex items-center justify-between pt-8 mt-8 border-t border-border">
       <div>
         {prev ? (
           <Link href={makePath(prev)}>

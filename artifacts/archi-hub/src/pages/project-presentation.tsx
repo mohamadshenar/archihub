@@ -321,7 +321,10 @@ export default function ProjectPresentation() {
   const floors = program?.floors ?? [];
   const totalGFA = floors.reduce((sum, f) => sum + (f.areaPerFloor || 0), 0);
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    document.title = `${proj?.name ?? "Project"} — Final Presentation`;
+    window.print();
+  };
 
   if (isLoading) {
     return (
@@ -339,7 +342,7 @@ export default function ProjectPresentation() {
           <h1 className="text-2xl font-bold tracking-tight">Final Presentation</h1>
           <p className="text-sm text-muted-foreground font-mono">Architectural poster board — compiled from project intelligence.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2" data-print-hide>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />Print
           </Button>
@@ -352,6 +355,7 @@ export default function ProjectPresentation() {
       {/* ───── POSTER ───── */}
       <div
         id="poster-board"
+        data-print-poster
         className="w-full rounded-xl overflow-hidden border border-white/10 shadow-2xl"
         style={{ background: "#0b0b0f", fontFamily: "'Space Mono', monospace" }}
       >

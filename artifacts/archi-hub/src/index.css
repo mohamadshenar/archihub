@@ -142,3 +142,40 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* ─── Print / Export PDF styles ─────────────────────────────── */
+@media print {
+  /* hide navigation, sidebar, header, toolbar, workflow nav */
+  aside,
+  header,
+  nav,
+  [data-sidebar],
+  [data-print-hide],
+  .workflow-nav {
+    display: none !important;
+  }
+
+  /* full-width content without sidebar padding */
+  main,
+  body,
+  #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* poster board fills the page */
+  [data-print-poster] {
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    break-inside: avoid;
+  }
+
+  /* page size — A1 landscape for large poster */
+  @page {
+    size: A1 landscape;
+    margin: 10mm;
+  }
+}
