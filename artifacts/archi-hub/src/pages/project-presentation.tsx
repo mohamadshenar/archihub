@@ -29,12 +29,15 @@ interface Regulations { heightLimit?: string; setbacks?: string; farRatio?: stri
 interface ProjectData {
   id: number; name: string; projectType: string; address?: string;
   siteArea?: number; numFloors?: number; description?: string;
+  latitude?: number; longitude?: number;
   siteAnalysis?: SiteAnalysis; program?: { floors?: ProgramFloor[] };
+  status?: string;
   metadata?: {
     concepts?: Concept[]; selectedConceptIdx?: number;
     interior?: Interior; exterior?: Exterior; brief?: Brief;
     zoning?: { nodes?: ZoningNode[] };
     regulations?: Regulations;
+    presentationLobbyImage?: string;
   };
 }
 
@@ -100,6 +103,193 @@ function short(text: string | undefined, maxLen = 80): string {
   if (!text) return "";
   const firstSentence = text.split(/\.\s/)[0];
   return firstSentence.length <= maxLen ? firstSentence : firstSentence.slice(0, maxLen) + "…";
+}
+
+/* ─── site analysis diagram ───────────────────────────────────────────── */
+function parseWindLabel(text: string): string {
+  const lc = (text ?? "").toLowerCase();
+  if (/north.?west|northwesterly|nw\b/.test(lc)) return "NW";
+  if (/west.?north|wnw\b/.test(lc))               return "WNW";
+  if (/north.?east|northeasterly|ne\b/.test(lc))  return "NE";
+  if (/east.?north|ene\b/.test(lc))               return "ENE";
+  if (/south.?west|sw\b/.test(lc))                return "SW";
+  if (/west.?south|wsw\b/.test(lc))               return "WSW";
+  if (/south.?east|se\b/.test(lc))                return "SE";
+  if (/east.?south|ese\b/.test(lc))               return "ESE";
+  if (/\bnortherly\b|\bnorth\b/.test(lc))          return "N";
+  if (/\bsoutherly\b|\bsouth\b/.test(lc))          return "S";
+  if (/\beasterly\b|\beast\b/.test(lc))            return "E";
+  if (/\bwesterly\b|\bwest\b/.test(lc))            return "W";
+  return "NW";
+}
+
+const COMPASS_DEG: Record<string, number> = {
+  N:0, NE:45, E:90, SE:135, S:180, SW:225, W:270, NW:315, ENE:68, ESE:112, WNW:292, WSW:248,
+};
+
+function SiteAnalysisDiagram({ siteAn, latitude, longitude }: {
+  siteAn?: SiteAnalysis; latitude?: number; longitude?: number;
+}) {
+  const windLabel = parseWindLabel(siteAn?.windDirection ?? "");
+  const windDeg   = COMPASS_DEG[windLabel] ?? 315;
+  const windRad   = (windDeg * Math.PI) / 180;
+
+  /* direction FROM which wind comes (SVG coords: x=E, y=S) */
+  const fromDx =  Math.sin(windRad);
+  const fromDy = -Math.cos(windRad);
+
+  /* arrows travel in opposite direction */
+  const toDx = -fromDx;
+  const toDy = -fromDy;
+
+  /* perpendicular for spacing parallel arrows */
+  const perpDx = -fromDy;
+  const perpDy =  fromDx;
+
+  const SITE_CX = 400; const SITE_CY = 162;
+  const BASE_DIST = 190; const ARROW_LEN = 100; const SPREAD = 38;
+  const baseX = SITE_CX + fromDx * BASE_DIST;
+  const baseY = SITE_CY + fromDy * BASE_DIST;
+
+  const windArrows = [-1.4, -0.45, 0.45, 1.4].map(t => ({
+    x1: Math.round(baseX + perpDx * t * SPREAD),
+    y1: Math.round(baseY + perpDy * t * SPREAD),
+    x2: Math.round(baseX + perpDx * t * SPREAD + toDx * ARROW_LEN),
+    y2: Math.round(baseY + perpDy * t * SPREAD + toDy * ARROW_LEN),
+  }));
+
+  /* wind label anchor position */
+  const windLabelX = Math.round(baseX + fromDx * 28);
+  const windLabelY = Math.round(baseY + fromDy * 28);
+
+  return (
+    <svg viewBox="0 0 800 320" width="100%" height="100%" style={{ display: "block", minHeight: 240 }}>
+      <defs>
+        <pattern id="ps-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+          <path d="M28 0L0 0 0 28" fill="none" stroke="rgba(255,255,255,0.022)" strokeWidth="0.5"/>
+        </pattern>
+        <marker id="ps-wind" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+          <path d="M0,0 L7,3.5 L0,7 Z" fill="rgba(56,189,248,0.9)"/>
+        </marker>
+        <marker id="ps-sun-s" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="rgba(251,191,36,0.55)"/>
+        </marker>
+        <filter id="ps-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="ps-glow-sm" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      {/* BG */}
+      <rect width="800" height="320" fill="#07090e"/>
+      <rect width="800" height="320" fill="url(#ps-grid)"/>
+
+      {/* ── Urban fabric — figure-ground ── */}
+      {/* NW quad */}
+      {[[8,8,88,50],[108,12,70,44],[190,8,66,48]].map(([x,y,w,h],i)=><rect key={`nw${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.055)"/>)}
+      {/* NE quad */}
+      {[[526,10,94,52],[632,8,82,46],[726,12,66,42]].map(([x,y,w,h],i)=><rect key={`ne${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.055)"/>)}
+      {/* W side */}
+      {[[8,88,78,68],[98,92,62,58],[172,86,88,70],[10,176,80,62],[102,170,68,68],[184,178,82,58]].map(([x,y,w,h],i)=><rect key={`w${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
+      {/* E side */}
+      {[[526,85,84,64],[622,82,90,70],[724,88,68,58],[530,168,78,68],[624,165,88,72],[724,176,68,58]].map(([x,y,w,h],i)=><rect key={`e${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
+      {/* SW quad */}
+      {[[10,258,90,52],[114,254,82,58],[208,260,62,48]].map(([x,y,w,h],i)=><rect key={`sw${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
+      {/* SE quad */}
+      {[[526,255,100,54],[640,258,82,50],[734,254,58,58]].map(([x,y,w,h],i)=><rect key={`se${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
+
+      {/* ── Streets ── */}
+      <line x1="0" y1="74" x2="800" y2="74" stroke="rgba(255,255,255,0.06)" strokeWidth="10"/>
+      <line x1="0" y1="250" x2="800" y2="250" stroke="rgba(255,255,255,0.06)" strokeWidth="10"/>
+      <line x1="274" y1="0" x2="274" y2="320" stroke="rgba(255,255,255,0.06)" strokeWidth="9"/>
+      <line x1="526" y1="0" x2="526" y2="320" stroke="rgba(255,255,255,0.05)" strokeWidth="7"/>
+      {/* street centre dashes */}
+      <line x1="0" y1="74" x2="800" y2="74" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" strokeDasharray="10,14"/>
+      <line x1="0" y1="250" x2="800" y2="250" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" strokeDasharray="10,14"/>
+
+      {/* ── Summer sun path arc: ENE→WNW curving through south ── */}
+      {/* rises ENE ≈ (700,42), sets WNW ≈ (100,42), south peak at (400,320) */}
+      <path d="M 700 42 C 700 330 100 330 100 42"
+        fill="none" stroke="rgba(251,191,36,0.4)" strokeWidth="2" strokeDasharray="9,5"/>
+      {/* winter sun path */}
+      <path d="M 640 70 C 640 290 160 290 160 70"
+        fill="none" stroke="rgba(251,191,36,0.2)" strokeWidth="1.2" strokeDasharray="5,5"/>
+
+      {/* summer sun symbol — rise (ENE) */}
+      <circle cx="700" cy="42" r="16" fill="rgba(251,191,36,0.13)" stroke="rgba(251,191,36,0.75)" strokeWidth="1.5" filter="url(#ps-glow)"/>
+      <text x="700" y="48" textAnchor="middle" fill="rgba(251,191,36,1)" fontSize="13" fontFamily="sans-serif">☀</text>
+      {/* summer sun label */}
+      <text x="710" y="24" textAnchor="middle" fill="rgba(251,191,36,0.75)" fontSize="6.5" fontFamily="monospace" fontWeight="bold">SUMMER SUN</text>
+
+      {/* winter sun symbol — set (WSW) */}
+      <circle cx="160" cy="70" r="10" fill="rgba(251,191,36,0.07)" stroke="rgba(251,191,36,0.38)" strokeWidth="1"/>
+      <text x="160" y="74" textAnchor="middle" fill="rgba(251,191,36,0.55)" fontSize="9" fontFamily="sans-serif">☀</text>
+      <text x="148" y="58" textAnchor="middle" fill="rgba(251,191,36,0.38)" fontSize="6" fontFamily="monospace">WINTER SUN</text>
+
+      {/* solar noon indicator — points south toward bottom */}
+      <line x1="400" y1="252" x2="400" y2="242" stroke="rgba(251,191,36,0.25)" strokeWidth="0.8" strokeDasharray="3,3"/>
+
+      {/* ── Wind arrows ── */}
+      {windArrows.map((a, i) => (
+        <line key={i} x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2}
+          stroke="rgba(56,189,248,0.78)" strokeWidth="1.8" markerEnd="url(#ps-wind)"/>
+      ))}
+      {/* wind source label */}
+      <text x={windLabelX} y={windLabelY - 8} textAnchor="middle"
+        fill="rgba(56,189,248,0.65)" fontSize="6.5" fontFamily="monospace">PREVAILING WIND</text>
+      <text x={windLabelX} y={windLabelY} textAnchor="middle"
+        fill="rgba(56,189,248,0.88)" fontSize="8" fontFamily="monospace" fontWeight="bold">{windLabel}</text>
+
+      {/* ── Site boundary ── */}
+      <rect x="274" y="78" width="252" height="172"
+        fill="rgba(217,119,6,0.04)" stroke="rgba(217,119,6,0.65)"
+        strokeWidth="1.8" strokeDasharray="10,5" rx="2"/>
+      {/* crosshairs */}
+      <line x1="400" y1="76" x2="400" y2="252" stroke="rgba(217,119,6,0.18)" strokeWidth="0.6" strokeDasharray="4,5"/>
+      <line x1="272" y1="164" x2="528" y2="164" stroke="rgba(217,119,6,0.18)" strokeWidth="0.6" strokeDasharray="4,5"/>
+      {/* site label */}
+      <text x="400" y="168" textAnchor="middle" fill="rgba(217,119,6,0.85)" fontSize="9" fontFamily="monospace" fontWeight="bold" letterSpacing="2">SITE</text>
+
+      {/* ── Compass rose ── */}
+      <g transform="translate(762, 38)">
+        <circle cx="0" cy="0" r="13" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8"/>
+        <polygon points="0,-16 -4,-5 4,-5" fill="rgba(255,255,255,0.7)"/>
+        <polygon points="0,16 -4,5 4,5" fill="rgba(255,255,255,0.25)"/>
+        <text x="0" y="-20" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="7" fontFamily="monospace">N</text>
+      </g>
+
+      {/* ── Scale bar ── */}
+      <g transform="translate(682, 306)">
+        <line x1="0" y1="0" x2="80" y2="0" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/>
+        <line x1="0" y1="-4" x2="0" y2="4" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/>
+        <line x1="40" y1="-2" x2="40" y2="2" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8"/>
+        <line x1="80" y1="-4" x2="80" y2="4" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/>
+        <text x="40" y="-6" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="6" fontFamily="monospace">50m</text>
+      </g>
+
+      {/* ── Coordinates ── */}
+      {(latitude && longitude) && (
+        <text x="6" y="314" fill="rgba(255,255,255,0.2)" fontSize="6.5" fontFamily="monospace">
+          {latitude.toFixed(4)}°N  {longitude.toFixed(4)}°E
+        </text>
+      )}
+
+      {/* ── Legend ── */}
+      <g transform="translate(6, 292)">
+        <line x1="0" y1="0" x2="16" y2="0" stroke="rgba(251,191,36,0.7)" strokeWidth="1.5" strokeDasharray="5,2"/>
+        <circle cx="8" cy="-5" r="3" fill="none" stroke="rgba(251,191,36,0.7)" strokeWidth="0.8"/>
+        <text x="19" y="4" fill="rgba(251,191,36,0.6)" fontSize="6" fontFamily="monospace">Sun path (Summer / Winter)</text>
+        <line x1="0" y1="12" x2="14" y2="12" stroke="rgba(56,189,248,0.7)" strokeWidth="1.5" markerEnd="url(#ps-wind)"/>
+        <text x="19" y="16" fill="rgba(56,189,248,0.6)" fontSize="6" fontFamily="monospace">Prevailing wind direction</text>
+        <rect x="0" y="21" width="14" height="8" fill="none" stroke="rgba(217,119,6,0.65)" strokeWidth="1" strokeDasharray="4,2"/>
+        <text x="19" y="28" fill="rgba(217,119,6,0.6)" fontSize="6" fontFamily="monospace">Site boundary</text>
+      </g>
+    </svg>
+  );
 }
 
 /* ─── main ────────────────────────────────────────────────────────────── */
@@ -262,83 +452,27 @@ export default function ProjectPresentation() {
           {/* SITE MAP + VISUALISATION — right 8 cols */}
           <div className="col-span-12 md:col-span-8 flex flex-col">
             {/* map area */}
-            <div className="relative flex-1" style={{ minHeight: 220, background: "#0d1117" }}>
-              {/* Map grid overlay — simulated site plan */}
-              <div className="absolute inset-0 overflow-hidden">
-                {/* grid lines */}
-                <svg width="100%" height="100%" className="opacity-[0.06]">
-                  <defs>
-                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5"/>
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#grid)" />
-                </svg>
-                {/* site boundary */}
-                <svg className="absolute inset-0 w-full h-full">
-                  {/* surrounding context blocks */}
-                  <rect x="8%" y="10%" width="22%" height="18%" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                  <rect x="35%" y="5%" width="28%" height="14%" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                  <rect x="68%" y="8%" width="20%" height="20%" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                  <rect x="10%" y="35%" width="18%" height="28%" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                  <rect x="65%" y="33%" width="24%" height="22%" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                  <rect x="12%" y="68%" width="26%" height="18%" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                  <rect x="60%" y="62%" width="28%" height="20%" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-                  {/* site footprint — highlighted */}
-                  <rect x="32%" y="30%" width="32%" height="34%" rx="3" fill="rgba(217,119,6,0.08)" stroke="rgba(217,119,6,0.5)" strokeWidth="1.5" />
-                  {/* site cross/target */}
-                  <line x1="48%" y1="28%" x2="48%" y2="66%" stroke="rgba(217,119,6,0.3)" strokeWidth="0.5" strokeDasharray="3,3" />
-                  <line x1="30%" y1="47%" x2="66%" y2="47%" stroke="rgba(217,119,6,0.3)" strokeWidth="0.5" strokeDasharray="3,3" />
-                  {/* sun arrow */}
-                  <line x1="80%" y1="15%" x2="68%" y2="32%" stroke="rgba(251,191,36,0.5)" strokeWidth="1" markerEnd="url(#arrow-sun)" />
-                  {/* wind arrow */}
-                  <line x1="5%" y1="45%" x2="18%" y2="47%" stroke="rgba(99,179,237,0.5)" strokeWidth="1" markerEnd="url(#arrow-wind)" />
-                  <defs>
-                    <marker id="arrow-sun" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto">
-                      <path d="M0,0 L5,2.5 L0,5 Z" fill="rgba(251,191,36,0.7)" />
-                    </marker>
-                    <marker id="arrow-wind" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto">
-                      <path d="M0,0 L5,2.5 L0,5 Z" fill="rgba(99,179,237,0.7)" />
-                    </marker>
-                  </defs>
-                  {/* north arrow */}
-                  <text x="92%" y="92%" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="9" fontFamily="monospace">N↑</text>
-                  {/* site label */}
-                  <text x="48%" y="47%" textAnchor="middle" fill="rgba(217,119,6,0.9)" fontSize="8" fontFamily="monospace" fontWeight="bold">SITE</text>
-                </svg>
-                {/* overlay labels */}
-                <div className="absolute top-2 left-2 space-y-0.5">
-                  <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500/70" /><span className="text-[7px] font-mono text-white/40">Site boundary</span></div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-yellow-400/50" style={{ borderTop: "1px dashed" }} /><span className="text-[7px] font-mono text-white/40">Sun path</span></div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-blue-400/50" style={{ borderTop: "1px dashed" }} /><span className="text-[7px] font-mono text-white/40">Wind direction</span></div>
-                </div>
-                {/* coordinates */}
-                {(proj?.latitude && proj?.longitude) && (
-                  <div className="absolute bottom-2 left-2">
-                    <span className="text-[7px] font-mono text-white/25">{proj.latitude.toFixed(4)}°N, {proj.longitude.toFixed(4)}°E</span>
-                  </div>
-                )}
-                {/* site analysis callouts on map */}
+            <div className="relative flex-1 overflow-hidden" style={{ minHeight: 240, background: "#07090e" }}>
+              {/* title strip */}
+              <div className="absolute inset-x-0 top-0 z-10 px-3 py-1.5 flex justify-between items-center pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(7,9,14,0.9) 70%, transparent)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <span className="text-[8px] font-mono text-amber-400/60 uppercase tracking-widest">Site Analysis Overlay · {parseWindLabel(siteAn?.windDirection ?? "")} Wind · South Exposure</span>
+                <span className="text-[7px] font-mono text-white/25">1:500</span>
+              </div>
+              <SiteAnalysisDiagram siteAn={siteAn} latitude={proj?.latitude} longitude={proj?.longitude} />
+              {/* sun / wind callout strip at bottom */}
+              <div className="absolute inset-x-0 bottom-0 px-3 py-1.5 flex gap-4 flex-wrap pointer-events-none" style={{ background: "linear-gradient(to top, rgba(7,9,14,0.85) 70%, transparent)" }}>
                 {siteAn?.sunExposure && (
-                  <div className="absolute top-2 right-12 bg-yellow-900/50 border border-yellow-500/20 rounded px-1.5 py-0.5">
-                    <p className="text-[7px] font-mono text-yellow-400">☀ {short(siteAn.sunExposure, 30)}</p>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-amber-400/80 text-[9px] mt-0.5">☀</span>
+                    <p className="text-[7px] font-mono text-amber-400/60 leading-snug max-w-[200px]">{short(siteAn.sunExposure, 55)}</p>
                   </div>
                 )}
                 {siteAn?.windDirection && (
-                  <div className="absolute top-2 left-1/4 bg-blue-900/40 border border-blue-400/20 rounded px-1.5 py-0.5">
-                    <p className="text-[7px] font-mono text-blue-300">↗ {short(siteAn.windDirection, 25)}</p>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-sky-400/80 text-[9px] mt-0.5">↗</span>
+                    <p className="text-[7px] font-mono text-sky-400/60 leading-snug max-w-[200px]">{short(siteAn.windDirection, 55)}</p>
                   </div>
                 )}
-                {siteAn?.climate && (
-                  <div className="absolute bottom-2 right-2 bg-white/5 border border-white/10 rounded px-1.5 py-0.5 max-w-[200px]">
-                    <p className="text-[7px] font-mono text-white/50 truncate">{short(siteAn.climate, 35)}</p>
-                  </div>
-                )}
-              </div>
-              {/* map section title */}
-              <div className="absolute inset-x-0 top-0 px-3 py-1.5 flex justify-between items-center" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <span className="text-[8px] font-mono text-amber-400/60 uppercase tracking-widest">Site Plan & Analysis Overlay</span>
-                <span className="text-[7px] font-mono text-white/25">1:500</span>
               </div>
             </div>
 
