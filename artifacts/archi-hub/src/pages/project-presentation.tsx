@@ -38,6 +38,7 @@ interface ProjectData {
     zoning?: { nodes?: ZoningNode[] };
     regulations?: Regulations;
     presentationLobbyImage?: string;
+    interiorImageHistory?: { imageUrl: string; style: string; generatedAt: string }[];
   };
 }
 
@@ -322,7 +323,10 @@ export default function ProjectPresentation() {
   const exterior    = meta.exterior as Exterior | undefined;
   const brief       = meta.brief as Brief | undefined;
   const regs        = (meta as Record<string, unknown>).regulations as Regulations | undefined;
-  const lobbyImg    = (meta.presentationLobbyImage as string | undefined) ?? interior?.spaces?.lobby?.imageUrl;
+  const history     = meta.interiorImageHistory ?? [];
+  const lobbyImg    = (meta.presentationLobbyImage as string | undefined)
+    ?? interior?.spaces?.lobby?.imageUrl
+    ?? (history.length > 0 ? history[history.length - 1].imageUrl : undefined);
 
   /* total GFA */
   const floors = program?.floors ?? [];
