@@ -1,0 +1,38 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "MN4mvgrWvXYPxKxRLcmkX"
+uri = "file://attached_assets/stock_images/style-minimalist-industrial.jpg"
+type = "image"
+title = "minimalist industrial interior architecture, exposed concrete, polished steel, dark minimal"
+
+[[outputs]]
+id = "QEjIos18teHHHzReodX21"
+uri = "file://attached_assets/stock_images/style-warm-brutalism.jpg"
+type = "image"
+title = "warm brutalism interior architecture, board-formed concrete, rich timber, warm lighting"
+
+[[outputs]]
+id = "3-Fz4LUGfmkTxxKP8NNPY"
+uri = "file://attached_assets/stock_images/style-high-contrast.jpg"
+type = "image"
+title = "high contrast interior architecture, dramatic black walls, stark white furniture, bold"
+
+[[outputs]]
+id = "jyqR0j5qDpFUnzYFs8cGI"
+uri = "file://attached_assets/stock_images/style-nordic-organic.jpg"
+type = "image"
+title = "nordic organic interior architecture, pale timber, linen, biophilic warm natural materials"
+
+[[outputs]]
+id = "coBXwSb6ixdhnI5F-UNki"
+uri = "file://attached_assets/stock_images/style-dark-parametric.jpg"
+type = "image"
+title = "dark parametric interior architecture, faceted surfaces, gradient metallic, dramatic geometry"
+
+[[outputs]]
+id = "d7cXRbEl8TJ59SyLfQJma"
+uri = "file://attached_assets/stock_images/style-tropical-contemporary.jpg"
+type = "image"
+title = "tropical contemporary interior architecture, rattan, green foliage walls, terracotta lush"

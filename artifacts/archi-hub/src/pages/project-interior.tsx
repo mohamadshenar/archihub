@@ -3,11 +3,18 @@ import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, ImageIcon, Sparkles } from "lucide-react";
+import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import imgMinimalistIndustrial from "@assets/stock_images/style-minimalist-industrial.jpg";
+import imgWarmBrutalism        from "@assets/stock_images/style-warm-brutalism.jpg";
+import imgHighContrast         from "@assets/stock_images/style-high-contrast.jpg";
+import imgNordicOrganic        from "@assets/stock_images/style-nordic-organic.jpg";
+import imgDarkParametric       from "@assets/stock_images/style-dark-parametric.jpg";
+import imgTropicalContemporary from "@assets/stock_images/style-tropical-contemporary.jpg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -43,19 +50,31 @@ interface InteriorDesign {
 }
 
 const STYLE_OPTIONS = [
-  { name: "Minimalist Industrial", desc: "Exposed services, polished concrete, sharp steel details.", colors: ["#1c1917","#44403c","#a8a29e","#e7e5e4","#ea580c"] },
-  { name: "Warm Brutalism",        desc: "Heavy board-formed concrete softened by rich timber elements.", colors: ["#292524","#57534e","#78716c","#b45309","#fcd34d"] },
-  { name: "High Contrast",         desc: "Dramatic dark walls punctuated by stark white furniture.", colors: ["#0a0a0a","#171717","#404040","#d4d4d8","#fafafa"] },
-  { name: "Nordic Organic",        desc: "Pale timber, linen tones, and biophilic material warmth.", colors: ["#fafaf9","#e7e5e4","#c4b49a","#78716c","#166534"] },
-  { name: "Dark Parametric",       desc: "Faceted surfaces, gradient metallic finishes, dramatic geometry.", colors: ["#09090b","#18181b","#3f3f46","#6366f1","#a78bfa"] },
-  { name: "Tropical Contemporary", desc: "Natural rattan, green foliage walls, terracotta and lush greenery.", colors: ["#fef3c7","#d4d4a0","#4ade80","#166534","#92400e"] },
+  { name: "Minimalist Industrial", desc: "Exposed services, polished concrete, sharp steel details.", colors: ["#1c1917","#44403c","#a8a29e","#e7e5e4","#ea580c"], img: imgMinimalistIndustrial },
+  { name: "Warm Brutalism",        desc: "Heavy board-formed concrete softened by rich timber elements.", colors: ["#292524","#57534e","#78716c","#b45309","#fcd34d"], img: imgWarmBrutalism },
+  { name: "High Contrast",         desc: "Dramatic dark walls punctuated by stark white furniture.", colors: ["#0a0a0a","#171717","#404040","#d4d4d8","#fafafa"], img: imgHighContrast },
+  { name: "Nordic Organic",        desc: "Pale timber, linen tones, and biophilic material warmth.", colors: ["#fafaf9","#e7e5e4","#c4b49a","#78716c","#166534"], img: imgNordicOrganic },
+  { name: "Dark Parametric",       desc: "Faceted surfaces, gradient metallic finishes, dramatic geometry.", colors: ["#09090b","#18181b","#3f3f46","#6366f1","#a78bfa"], img: imgDarkParametric },
+  { name: "Tropical Contemporary", desc: "Natural rattan, green foliage walls, terracotta and lush greenery.", colors: ["#fef3c7","#d4d4a0","#4ade80","#166534","#92400e"], img: imgTropicalContemporary },
 ];
+
+const STYLE_IMG: Record<string, string> = Object.fromEntries(
+  STYLE_OPTIONS.map(s => [s.name, s.img])
+);
 
 const SPACE_LABELS: Record<string, string> = {
   lobby: "Lobby", workspace: "Workspace", exhibition: "Exhibition", cafe: "Cafe",
 };
 
-function SpacePanel({ spec, imageUrl, space }: { spec: SpaceSpec; imageUrl?: string; space: string }) {
+function SpacePanel({
+  spec, imageUrl, styleImg, space, visualizing,
+}: {
+  spec: SpaceSpec;
+  imageUrl?: string;
+  styleImg?: string;
+  space: string;
+  visualizing?: boolean;
+}) {
   const rows = [
     { label: "Lighting Mood",      value: spec.lightingMood },
     { label: "Colour Temperature", value: spec.lightingTemp },
@@ -67,7 +86,10 @@ function SpacePanel({ spec, imageUrl, space }: { spec: SpaceSpec; imageUrl?: str
     { label: "Acoustics",          value: spec.acoustics },
   ];
 
-  const img = imageUrl ?? spec.imageUrl;
+  // Priority: AI-generated per-space image → saved spec imageUrl → style reference photo
+  const aiImg   = imageUrl ?? spec.imageUrl;
+  const refImg  = styleImg;
+  const caption = aiImg ? `AI Visualisation · ${SPACE_LABELS[space]}` : `Style Reference · ${SPACE_LABELS[space]}`;
 
   return (
     <div className="space-y-5">
@@ -78,42 +100,46 @@ function SpacePanel({ spec, imageUrl, space }: { spec: SpaceSpec; imageUrl?: str
         </div>
       )}
 
-      {/* Visual preview image */}
-      <AnimatePresence>
-        {img ? (
+      {/* Visual area — always shows something */}
+      <AnimatePresence mode="wait">
+        {visualizing ? (
           <motion.div
-            key="img"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-            className="relative rounded-xl overflow-hidden border border-border/40"
-          >
-            <img
-              src={img}
-              alt={`${SPACE_LABELS[space]} interior visualisation`}
-              className="w-full object-cover"
-              style={{ maxHeight: 340 }}
-            />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
-              <p className="text-white text-xs font-mono uppercase tracking-widest opacity-80">
-                AI Visualisation · {SPACE_LABELS[space]}
-              </p>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="skeleton"
+            key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative rounded-xl overflow-hidden border border-border/40 bg-muted/20 flex flex-col items-center justify-center gap-2"
-            style={{ height: 220 }}
+            className="relative rounded-xl overflow-hidden border border-border/40 bg-muted/20 flex flex-col items-center justify-center gap-3"
+            style={{ height: 300 }}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-muted/10 to-muted/30 animate-pulse" />
-            <ImageIcon className="w-8 h-8 text-muted-foreground/30 z-10" />
-            <p className="text-xs text-muted-foreground/50 font-mono z-10">Visual loading…</p>
+            {refImg && (
+              <img src={refImg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-black/80" />
+            <Loader2 className="w-8 h-8 text-primary animate-spin z-10" />
+            <p className="text-xs text-muted-foreground/80 font-mono z-10">Generating AI visualisation…</p>
           </motion.div>
-        )}
+        ) : (aiImg || refImg) ? (
+          <motion.div
+            key={aiImg ? "ai" : "ref"}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="relative rounded-xl overflow-hidden border border-border/40"
+          >
+            <img
+              src={aiImg ?? refImg}
+              alt={`${SPACE_LABELS[space]} interior`}
+              className="w-full object-cover"
+              style={{ maxHeight: 360 }}
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 to-transparent px-4 py-3 flex items-end justify-between">
+              <p className="text-white text-xs font-mono uppercase tracking-widest opacity-90">{caption}</p>
+              {!aiImg && (
+                <span className="text-[10px] font-mono text-white/50 uppercase tracking-wide">Style reference</span>
+              )}
+            </div>
+          </motion.div>
+        ) : null}
       </AnimatePresence>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -334,14 +360,26 @@ export default function ProjectInterior() {
                       active ? "border-primary shadow-md shadow-primary/10" : "border-border/40 hover:border-primary/50"
                     }`}
                   >
-                    <div className="h-8 flex">
-                      {s.colors.map((c, i) => <div key={i} className="flex-1" style={{ backgroundColor: c }} />)}
+                    {/* Photo thumbnail */}
+                    <div className="relative h-20 overflow-hidden">
+                      <img
+                        src={s.img}
+                        alt={s.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/30" />
+                      {/* colour strip overlay at bottom */}
+                      <div className="absolute bottom-0 left-0 right-0 h-2 flex">
+                        {s.colors.map((c, i) => <div key={i} className="flex-1" style={{ backgroundColor: c }} />)}
+                      </div>
+                      {active && (
+                        <div className="absolute top-1.5 right-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-primary drop-shadow" />
+                        </div>
+                      )}
                     </div>
                     <div className="p-2">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        {active && <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />}
-                        <p className="text-[11px] font-semibold leading-tight">{s.name}</p>
-                      </div>
+                      <p className="text-[11px] font-semibold leading-tight mb-0.5">{s.name}</p>
                       <p className="text-[9px] text-muted-foreground leading-tight">{s.desc}</p>
                     </div>
                   </div>
@@ -437,16 +475,41 @@ export default function ProjectInterior() {
         </TabsList>
 
         {["lobby", "workspace", "exhibition", "cafe"].map(space => {
-          const spec = interior?.spaces?.[space as keyof typeof interior.spaces];
+          const spec     = interior?.spaces?.[space as keyof typeof interior.spaces];
+          const styleImg = STYLE_IMG[selectedStyle];
           return (
             <TabsContent key={space} value={space} className="pt-6">
               {spec ? (
-                <SpacePanel spec={spec} imageUrl={spaceImages[space]} space={space} />
+                <SpacePanel
+                  spec={spec}
+                  imageUrl={spaceImages[space]}
+                  styleImg={styleImg}
+                  space={space}
+                  visualizing={visualizing}
+                />
               ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <Sofa className="w-8 h-8 text-muted-foreground/40 mb-3" />
-                  <p className="text-sm text-muted-foreground mb-1">No interior spec generated yet.</p>
-                  <p className="text-xs text-muted-foreground/60">Select a style above, then click Generate Interior.</p>
+                /* No spec yet — show the style reference photo with an overlay prompt */
+                <div className="relative rounded-xl overflow-hidden border border-border/40">
+                  {styleImg ? (
+                    <>
+                      <img
+                        src={styleImg}
+                        alt={selectedStyle}
+                        className="w-full object-cover opacity-40"
+                        style={{ maxHeight: 320 }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20 flex flex-col items-center justify-end pb-10 text-center gap-2 px-6">
+                        <p className="text-sm font-semibold text-white">{selectedStyle} — Style Preview</p>
+                        <p className="text-xs text-white/60">Click Generate Interior to create your full specification with AI-generated visuals for each space.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <Sofa className="w-8 h-8 text-muted-foreground/40 mb-3" />
+                      <p className="text-sm text-muted-foreground mb-1">No interior spec generated yet.</p>
+                      <p className="text-xs text-muted-foreground/60">Select a style above, then click Generate Interior.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </TabsContent>
