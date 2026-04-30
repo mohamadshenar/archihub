@@ -1227,6 +1227,88 @@ colorPalette must be ${conceptPalette.length > 0 ? `these exact hex codes: ${con
   res.json({ interior });
 });
 
+// ─── Shared lobby prompt builder ─────────────────────────────────────────────
+function buildLobbyImagePrompt(
+  interior: Record<string, unknown>,
+  project: { name: string; projectType: string; description?: string | null },
+  editInstruction?: string,
+): string {
+  const style       = (interior.selectedStyle as string | undefined) ?? "Contemporary";
+  const styleDesc   = (interior.styleDescription as string | undefined) ?? "";
+  const palette     = (interior.colorPalette as string[] | undefined) ?? [];
+  const lobbySpec   = ((interior.spaces as Record<string, Record<string, unknown>> | undefined)?.lobby) ?? {};
+  const matPalette  = (interior.materialPalette as { name?: string; role?: string; description?: string }[] | undefined) ?? [];
+  const ffStrategy  = (interior.ffStrategy as string | undefined) ?? "";
+  const sustNotes   = (interior.sustainabilityNotes as string | undefined) ?? "";
+
+  // ── Project context
+  const projectCtx = `${project.projectType} building called "${project.name}"`;
+
+  // ── Style anchor: use full AI-generated style description
+  const styleAnchor = styleDesc
+    ? `${style} style — ${styleDesc}`
+    : `${style} architectural interior style`;
+
+  // ── Colour palette
+  const colourLine = palette.length > 0
+    ? `Dominant colour palette: ${palette.join(", ")} — these hex tones must be clearly expressed in surfaces, finishes, and light.`
+    : "";
+
+  // ── Key focal feature (the centrepiece of the shot)
+  const keyFeatureLine = lobbySpec.keyFeature
+    ? `Central design element: ${lobbySpec.keyFeature}.`
+    : "";
+
+  // ── Lighting specification
+  const lightingLines = [
+    lobbySpec.lightingMood    ? `Lighting mood: ${lobbySpec.lightingMood}.` : "",
+    lobbySpec.lightingTemp    ? `Colour temperature: ${lobbySpec.lightingTemp}.` : "",
+  ].filter(Boolean).join(" ");
+
+  // ── Surface finishes
+  const finishLines = [
+    lobbySpec.primaryFinish   ? `Primary wall/surface finish: ${lobbySpec.primaryFinish}.` : "",
+    lobbySpec.secondaryFinish ? `Secondary surface finish: ${lobbySpec.secondaryFinish}.` : "",
+    lobbySpec.flooringMaterial ? `Floor material: ${lobbySpec.flooringMaterial}.` : "",
+    lobbySpec.ceilingTreatment ? `Ceiling treatment: ${lobbySpec.ceilingTreatment}.` : "",
+  ].filter(Boolean).join(" ");
+
+  // ── Furniture & acoustics
+  const furnitureLine = lobbySpec.seating ? `Furniture and seating: ${lobbySpec.seating}.` : "";
+  const acousticLine  = lobbySpec.acoustics ? `Acoustic elements visible in the space: ${lobbySpec.acoustics}.` : "";
+
+  // ── Material palette (named materials)
+  const matLine = matPalette.length > 0
+    ? `Named materials present: ${matPalette.map(m => m.name ?? "").filter(Boolean).join(", ")}.`
+    : "";
+
+  // ── FF&E & sustainability cues (briefly — for texture and tone references)
+  const ffLine   = ffStrategy   ? `FF&E intent: ${ffStrategy.slice(0, 180)}.` : "";
+  const sustLine = sustNotes    ? `Sustainability cues: ${sustNotes.slice(0, 120)}.` : "";
+
+  // ── Compose the prompt
+  const parts = [
+    `Photorealistic ultra-high-detail architectural interior photography of a ${projectCtx} entrance lobby.`,
+    `Style: ${styleAnchor}.`,
+    colourLine,
+    keyFeatureLine,
+    lightingLines,
+    finishLines,
+    furnitureLine,
+    acousticLine,
+    matLine,
+    ffLine,
+    sustLine,
+    "Dramatic wide-angle architectural shot showing the full lobby space.",
+    "No people. Cinematic depth of field. Architectural photography quality, 8K resolution. Shot on Phase One IQ4, tilt-shift lens.",
+  ].filter(Boolean).join(" ");
+
+  if (editInstruction) {
+    return `${parts} SPECIFIC EDIT TO APPLY: ${editInstruction}.`;
+  }
+  return parts;
+}
+
 // ─── POST /projects/:id/interior/visualize — Generate space images ────────────
 router.post("/projects/:id/interior/visualize", async (req, res) => {
   const id = parseInt(req.params.id);
@@ -1240,13 +1322,7 @@ router.post("/projects/:id/interior/visualize", async (req, res) => {
   const selectedStyle = (req.body as Record<string, unknown>).selectedStyle as string | undefined
     ?? (interior.selectedStyle as string | undefined)
     ?? "Contemporary";
-  const styleDesc = (interior.styleDescription as string | undefined) ?? "";
-  const palette: string[] = (interior.colorPalette as string[] | undefined) ?? [];
-
-  const styleDesc2 = styleDesc ? ` ${styleDesc}` : "";
-  const paletteStr = palette.length > 0 ? ` Colour palette: ${palette.join(", ")}.` : "";
-
-  const lobbyPrompt = `Professional architectural interior photograph of a building entrance lobby, ${selectedStyle} style.${styleDesc2}${paletteStr} Dramatic entry space, reception desk, high ceiling with statement lighting fixture, polished floor. No people. Photorealistic, ultra-detailed, architectural photography, natural and artificial lighting, 8K quality.`;
+  const lobbyPrompt = buildLobbyImagePrompt(interior, project);
 
   // Generate lobby image
   const results = await Promise.allSettled([
@@ -1315,21 +1391,7 @@ router.post("/projects/:id/interior/visualize/edit", async (req, res) => {
   if (!editPrompt) { res.status(400).json({ error: "editPrompt is required" }); return; }
 
   const selectedStyle = (interior.selectedStyle as string | undefined) ?? "Contemporary";
-  const styleDesc     = (interior.styleDescription as string | undefined) ?? "";
-  const palette: string[] = (interior.colorPalette as string[] | undefined) ?? [];
-  const lobbySpec = ((interior.spaces as Record<string, unknown> | undefined)?.lobby as Record<string, unknown> | undefined) ?? {};
-
-  const styleDesc2 = styleDesc ? ` ${styleDesc}` : "";
-  const paletteStr = palette.length > 0 ? ` Colour palette: ${palette.join(", ")}.` : "";
-  const specStr    = [
-    lobbySpec.lightingMood    ? `Lighting: ${lobbySpec.lightingMood}.`   : "",
-    lobbySpec.primaryFinish   ? `Primary finish: ${lobbySpec.primaryFinish}.` : "",
-    lobbySpec.flooringMaterial ? `Floor: ${lobbySpec.flooringMaterial}.` : "",
-    lobbySpec.ceilingTreatment ? `Ceiling: ${lobbySpec.ceilingTreatment}.` : "",
-  ].filter(Boolean).join(" ");
-
-  const basePrompt = `Professional architectural interior photograph of a building entrance lobby, ${selectedStyle} style.${styleDesc2}${paletteStr} ${specStr} No people. Photorealistic, ultra-detailed, architectural photography, natural and artificial lighting, 8K quality.`;
-  const fullPrompt = `${basePrompt} EDIT INSTRUCTION: ${editPrompt}.`;
+  const fullPrompt = buildLobbyImagePrompt(interior, project, editPrompt);
 
   let imageBuffer: Buffer;
   try {
