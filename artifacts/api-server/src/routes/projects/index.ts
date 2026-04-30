@@ -307,7 +307,30 @@ router.put("/projects/:id/metadata", async (req, res): Promise<void> => {
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
   const current = (existing.metadata as Record<string, unknown>) ?? {};
-  const updated = { ...current, [section]: data };
+
+  // When patching the "interior" section, preserve any imageUrl values already stored
+  // in spaces (set by the visualize endpoint) so they are not wiped on style changes.
+  let mergedData: unknown = data;
+  if (section === "interior" && data && typeof data === "object") {
+    const existingInterior = (current.interior as Record<string, unknown>) ?? {};
+    const existingSpaces   = (existingInterior.spaces as Record<string, Record<string, unknown>>) ?? {};
+    const incomingData     = data as Record<string, unknown>;
+    const incomingSpaces   = (incomingData.spaces as Record<string, Record<string, unknown>>) ?? {};
+
+    // Merge spaces: new spec fields + preserved imageUrl from DB
+    const mergedSpaces: Record<string, Record<string, unknown>> = {};
+    const allSpaceKeys = new Set([...Object.keys(existingSpaces), ...Object.keys(incomingSpaces)]);
+    for (const key of allSpaceKeys) {
+      mergedSpaces[key] = {
+        ...(existingSpaces[key] ?? {}),
+        ...(incomingSpaces[key] ?? {}),
+        ...(existingSpaces[key]?.imageUrl ? { imageUrl: existingSpaces[key].imageUrl } : {}),
+      };
+    }
+    mergedData = { ...incomingData, spaces: mergedSpaces };
+  }
+
+  const updated = { ...current, [section]: mergedData };
 
   const [project] = await db
     .update(projectsTable)
@@ -1221,6 +1244,24 @@ colorPalette must be ${conceptPalette.length > 0 ? `these exact hex codes: ${con
   if (conceptPalette.length > 0) interior.colorPalette = conceptPalette.slice(0, 5);
   interior.generatedAt = new Date().toISOString();
   interior.selectedStyle = selectedStyle;
+
+  // Preserve any imageUrls already stored in the existing spaces
+  // so that regenerating the interior design doesn't wipe generated visuals.
+  const existingInterior = (meta.interior as Record<string, unknown>) ?? {};
+  const existingSpaces   = (existingInterior.spaces as Record<string, Record<string, unknown>>) ?? {};
+  const newSpaces        = (interior.spaces as Record<string, Record<string, unknown>>) ?? {};
+  if (Object.keys(existingSpaces).length > 0) {
+    const preserved: Record<string, Record<string, unknown>> = {};
+    const allKeys = new Set([...Object.keys(existingSpaces), ...Object.keys(newSpaces)]);
+    for (const key of allKeys) {
+      preserved[key] = {
+        ...(existingSpaces[key] ?? {}),
+        ...(newSpaces[key] ?? {}),
+        ...(existingSpaces[key]?.imageUrl ? { imageUrl: existingSpaces[key].imageUrl } : {}),
+      };
+    }
+    interior.spaces = preserved;
+  }
 
   const updatedMeta = { ...meta, interior };
   await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));

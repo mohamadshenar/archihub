@@ -190,6 +190,11 @@ export default function ProjectInterior() {
         for (const [sp, spec] of Object.entries(meta.interior.spaces ?? {})) {
           if (spec?.imageUrl) imgs[sp] = spec.imageUrl;
         }
+        // Fallback: if no imageUrl in spaces yet, restore latest from history so the
+        // image is visible on reload even if the spaces record was not yet updated.
+        if (!imgs.lobby && meta.interiorImageHistory?.length) {
+          imgs.lobby = meta.interiorImageHistory[meta.interiorImageHistory.length - 1].imageUrl;
+        }
         if (Object.keys(imgs).length > 0) setSpaceImages(imgs);
       }
       if (meta.interiorImageHistory?.length) {
@@ -234,13 +239,16 @@ export default function ProjectInterior() {
       };
       setSpaceImages(data.images);
       if (data.interiorImageHistory) setImageHistory(data.interiorImageHistory);
+      // Reload metadata so the interior React state includes the saved spaces.imageUrl.
+      // This prevents handleSelectStyle from wiping the imageUrl on the next save.
+      await loadMeta();
       toast({ title: "Visual Generated", description: `Lobby visualisation ready — added to history.` });
     } catch {
       toast({ title: "Visualisation Failed", description: "Could not generate space images.", variant: "destructive" });
     } finally {
       setVisualizing(false);
     }
-  }, [projectId, toast]);
+  }, [projectId, toast, loadMeta]);
 
   const handleEditGenerate = useCallback(async (prompt: string) => {
     if (!prompt.trim()) return;
@@ -259,13 +267,14 @@ export default function ProjectInterior() {
       setSpaceImages({ lobby: data.imageUrl });
       if (data.interiorImageHistory) setImageHistory(data.interiorImageHistory);
       setEditPrompt("");
+      await loadMeta();
       toast({ title: "Edit Applied", description: "New visualisation generated with your edit." });
     } catch {
       toast({ title: "Edit Failed", variant: "destructive" });
     } finally {
       setEditing(false);
     }
-  }, [projectId, toast]);
+  }, [projectId, toast, loadMeta]);
 
   const sendToPresentation = useCallback(async (imageUrl: string) => {
     try {
@@ -603,17 +612,17 @@ export default function ProjectInterior() {
           <Sofa className="w-4 h-4 text-primary" />
           <span className="text-sm font-mono uppercase tracking-widest text-primary">Lobby</span>
         </div>
-        {interior?.spaces?.lobby ? (
+        {(interior?.spaces?.lobby || spaceImages["lobby"]) ? (
           <div className="space-y-4">
             <SpacePanel
-              spec={interior.spaces.lobby}
+              spec={interior?.spaces?.lobby ?? {}}
               imageUrl={spaceImages["lobby"]}
               visualizing={visualizing}
               onImageClick={setLightboxUrl}
             />
 
             {/* ─── Edit Prompt ─────────────────────────────────────────── */}
-            {(spaceImages["lobby"] || interior.spaces.lobby.imageUrl) && !visualizing && (
+            {(spaceImages["lobby"] || interior?.spaces?.lobby?.imageUrl) && !visualizing && (
               <div className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Wand2 className="w-4 h-4 text-primary" />
