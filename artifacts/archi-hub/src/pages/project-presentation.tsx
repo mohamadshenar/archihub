@@ -174,26 +174,37 @@ function SiteAnalysisDiagram({ siteAn, latitude, longitude }: {
   return (
     <div style={{ position: "relative", width: "100%", height: 300, overflow: "hidden" }}>
 
-      {/* ── Real OpenStreetMap tiles ── */}
-      <MapContainer
-        center={[lat, lng]}
-        zoom={16}
-        zoomControl={false}
-        dragging={false}
-        scrollWheelZoom={false}
-        doubleClickZoom={false}
-        touchZoom={false}
-        keyboard={false}
-        attributionControl={false}
-        style={{ height: "100%", width: "100%", zIndex: 1 }}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      </MapContainer>
+      {/* ── Map tiles with amber/dark filter ──
+          Base: CartoDB Dark Matter (near-black bg, white/gray roads)
+          Filter: darken + half-sepia → dark bg, warm amber roads ── */}
+      <div style={{
+        position: "absolute", inset: 0,
+        filter: "brightness(0.55) sepia(0.55) saturate(2.8) hue-rotate(5deg) contrast(1.3)",
+      }}>
+        <MapContainer
+          center={[lat, lng]}
+          zoom={16}
+          zoomControl={false}
+          dragging={false}
+          scrollWheelZoom={false}
+          doubleClickZoom={false}
+          touchZoom={false}
+          keyboard={false}
+          attributionControl={false}
+          style={{ height: "100%", width: "100%", zIndex: 1 }}
+        >
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            subdomains={["a","b","c","d"]}
+          />
+        </MapContainer>
+      </div>
 
-      {/* ── Dark tint (match site-selection page) ── */}
+      {/* ── Subtle vignette to ground the overlay ── */}
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none",
-        background: "rgba(7,9,14,0.52)", mixBlendMode: "multiply", zIndex: 400,
+        background: "radial-gradient(ellipse at center, transparent 40%, rgba(7,9,14,0.55) 100%)",
+        zIndex: 400,
       }} />
 
       {/* ── Analysis SVG overlay ── */}
