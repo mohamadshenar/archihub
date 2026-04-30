@@ -3,9 +3,9 @@ import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers } from "lucide-react";
+import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, ImageIcon, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -21,6 +21,7 @@ interface SpaceSpec {
   seating:          string;
   acoustics:        string;
   keyFeature:       string;
+  imageUrl?:        string;
 }
 
 interface MaterialEntry { name: string; role: string; description: string; }
@@ -42,64 +43,79 @@ interface InteriorDesign {
 }
 
 const STYLE_OPTIONS = [
-  {
-    name: "Minimalist Industrial",
-    desc: "Exposed services, polished concrete, sharp steel details.",
-    colors: ["#1c1917", "#44403c", "#a8a29e", "#e7e5e4", "#ea580c"],
-  },
-  {
-    name: "Warm Brutalism",
-    desc: "Heavy board-formed concrete softened by rich timber elements.",
-    colors: ["#292524", "#57534e", "#78716c", "#b45309", "#fcd34d"],
-  },
-  {
-    name: "High Contrast",
-    desc: "Dramatic dark walls punctuated by stark white furniture.",
-    colors: ["#0a0a0a", "#171717", "#404040", "#d4d4d8", "#fafafa"],
-  },
-  {
-    name: "Nordic Organic",
-    desc: "Pale timber, linen tones, and biophilic material warmth.",
-    colors: ["#fafaf9", "#e7e5e4", "#c4b49a", "#78716c", "#166534"],
-  },
-  {
-    name: "Dark Parametric",
-    desc: "Faceted surfaces, gradient metallic finishes, dramatic geometry.",
-    colors: ["#09090b", "#18181b", "#3f3f46", "#6366f1", "#a78bfa"],
-  },
-  {
-    name: "Tropical Contemporary",
-    desc: "Natural rattan, green foliage walls, terracotta and lush greenery.",
-    colors: ["#fef3c7", "#d4d4a0", "#4ade80", "#166534", "#92400e"],
-  },
+  { name: "Minimalist Industrial", desc: "Exposed services, polished concrete, sharp steel details.", colors: ["#1c1917","#44403c","#a8a29e","#e7e5e4","#ea580c"] },
+  { name: "Warm Brutalism",        desc: "Heavy board-formed concrete softened by rich timber elements.", colors: ["#292524","#57534e","#78716c","#b45309","#fcd34d"] },
+  { name: "High Contrast",         desc: "Dramatic dark walls punctuated by stark white furniture.", colors: ["#0a0a0a","#171717","#404040","#d4d4d8","#fafafa"] },
+  { name: "Nordic Organic",        desc: "Pale timber, linen tones, and biophilic material warmth.", colors: ["#fafaf9","#e7e5e4","#c4b49a","#78716c","#166534"] },
+  { name: "Dark Parametric",       desc: "Faceted surfaces, gradient metallic finishes, dramatic geometry.", colors: ["#09090b","#18181b","#3f3f46","#6366f1","#a78bfa"] },
+  { name: "Tropical Contemporary", desc: "Natural rattan, green foliage walls, terracotta and lush greenery.", colors: ["#fef3c7","#d4d4a0","#4ade80","#166534","#92400e"] },
 ];
 
 const SPACE_LABELS: Record<string, string> = {
-  lobby: "Lobby",
-  workspace: "Workspace",
-  exhibition: "Exhibition",
-  cafe: "Cafe",
+  lobby: "Lobby", workspace: "Workspace", exhibition: "Exhibition", cafe: "Cafe",
 };
 
-function SpacePanel({ spec }: { spec: SpaceSpec }) {
+function SpacePanel({ spec, imageUrl, space }: { spec: SpaceSpec; imageUrl?: string; space: string }) {
   const rows = [
-    { label: "Lighting Mood",     value: spec.lightingMood },
+    { label: "Lighting Mood",      value: spec.lightingMood },
     { label: "Colour Temperature", value: spec.lightingTemp },
-    { label: "Primary Finish",    value: spec.primaryFinish },
-    { label: "Secondary Finish",  value: spec.secondaryFinish },
-    { label: "Flooring",          value: spec.flooringMaterial },
-    { label: "Ceiling",           value: spec.ceilingTreatment },
-    { label: "Seating / FF&E",    value: spec.seating },
-    { label: "Acoustics",         value: spec.acoustics },
+    { label: "Primary Finish",     value: spec.primaryFinish },
+    { label: "Secondary Finish",   value: spec.secondaryFinish },
+    { label: "Flooring",           value: spec.flooringMaterial },
+    { label: "Ceiling",            value: spec.ceilingTreatment },
+    { label: "Seating / FF&E",     value: spec.seating },
+    { label: "Acoustics",          value: spec.acoustics },
   ];
+
+  const img = imageUrl ?? spec.imageUrl;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {spec.keyFeature && (
         <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-          <p className="text-[10px] font-mono text-primary uppercase tracking-widest mb-1">Key Feature</p>
+          <p className="text-[10px] font-mono text-primary uppercase tracking-widest mb-1">Key Feature — {SPACE_LABELS[space]}</p>
           <p className="text-sm text-foreground leading-relaxed">{spec.keyFeature}</p>
         </div>
       )}
+
+      {/* Visual preview image */}
+      <AnimatePresence>
+        {img ? (
+          <motion.div
+            key="img"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="relative rounded-xl overflow-hidden border border-border/40"
+          >
+            <img
+              src={img}
+              alt={`${SPACE_LABELS[space]} interior visualisation`}
+              className="w-full object-cover"
+              style={{ maxHeight: 340 }}
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+              <p className="text-white text-xs font-mono uppercase tracking-widest opacity-80">
+                AI Visualisation · {SPACE_LABELS[space]}
+              </p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="relative rounded-xl overflow-hidden border border-border/40 bg-muted/20 flex flex-col items-center justify-center gap-2"
+            style={{ height: 220 }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-muted/10 to-muted/30 animate-pulse" />
+            <ImageIcon className="w-8 h-8 text-muted-foreground/30 z-10" />
+            <p className="text-xs text-muted-foreground/50 font-mono z-10">Visual loading…</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {rows.map(r => (
           <div key={r.label} className="p-3 bg-muted/30 rounded-lg border border-border/50">
@@ -117,13 +133,14 @@ export default function ProjectInterior() {
   const projectId = parseInt(params.id || "0");
   const { toast } = useToast();
 
-  const [interior,    setInterior]   = useState<InteriorDesign | null>(null);
-  const [selectedStyle, setSelectedStyle] = useState<string>("Minimalist Industrial");
+  const [interior,       setInterior]       = useState<InteriorDesign | null>(null);
+  const [selectedStyle,  setSelectedStyle]  = useState<string>("Minimalist Industrial");
   const [conceptPalette, setConceptPalette] = useState<string[]>([]);
-  const [generating,  setGenerating] = useState(false);
-  const [metaLoaded,  setMetaLoaded] = useState(false);
+  const [generating,     setGenerating]     = useState(false);
+  const [visualizing,    setVisualizing]    = useState(false);
+  const [spaceImages,    setSpaceImages]    = useState<Record<string, string>>({});
+  const [metaLoaded,     setMetaLoaded]     = useState(false);
 
-  // Load saved interior data + concept palette
   const loadMeta = useCallback(async () => {
     if (!projectId) return;
     try {
@@ -137,6 +154,12 @@ export default function ProjectInterior() {
       if (meta.interior) {
         setInterior(meta.interior);
         if (meta.interior.selectedStyle) setSelectedStyle(meta.interior.selectedStyle);
+        // Restore any persisted space images
+        const imgs: Record<string, string> = {};
+        for (const [sp, spec] of Object.entries(meta.interior.spaces ?? {})) {
+          if (spec?.imageUrl) imgs[sp] = spec.imageUrl;
+        }
+        if (Object.keys(imgs).length > 0) setSpaceImages(imgs);
       }
       if (meta.concepts?.length) {
         const storedLocal = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
@@ -151,23 +174,39 @@ export default function ProjectInterior() {
 
   useEffect(() => { loadMeta(); }, [loadMeta]);
 
-  // Save style selection immediately on click
   const handleSelectStyle = async (name: string) => {
     setSelectedStyle(name);
-    // Optimistically update saved interior section
     await fetch(`${BASE}/api/projects/${projectId}/metadata`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        section: "interior",
-        data: { ...(interior ?? {}), selectedStyle: name },
-      }),
+      body: JSON.stringify({ section: "interior", data: { ...(interior ?? {}), selectedStyle: name } }),
     }).catch(() => {});
     toast({ title: "Style Direction Selected", description: `"${name}" is now the active interior direction.` });
   };
 
+  const triggerVisualize = useCallback(async (style: string) => {
+    setVisualizing(true);
+    setSpaceImages({});
+    try {
+      const res = await fetch(`${BASE}/api/projects/${projectId}/interior/visualize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedStyle: style }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json() as { images: Record<string, string> };
+      setSpaceImages(data.images);
+      toast({ title: "Visuals Ready", description: "Interior visualisations generated for all spaces." });
+    } catch {
+      toast({ title: "Visualisation Failed", description: "Could not generate space images.", variant: "destructive" });
+    } finally {
+      setVisualizing(false);
+    }
+  }, [projectId, toast]);
+
   const handleGenerate = async () => {
     setGenerating(true);
+    setSpaceImages({});
     try {
       const storedLocal = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
       const selectedConceptIdx = storedLocal !== null ? parseInt(storedLocal) || 0 : 0;
@@ -181,7 +220,9 @@ export default function ProjectInterior() {
       const data = await res.json() as { interior: InteriorDesign };
       setInterior(data.interior);
       if (data.interior.colorPalette?.length) setConceptPalette(data.interior.colorPalette);
-      toast({ title: "Interior Design Generated", description: `"${selectedStyle}" specification ready.` });
+      toast({ title: "Interior Design Generated", description: `"${selectedStyle}" specification ready. Generating visuals…` });
+      // Kick off image generation immediately after spec is ready
+      triggerVisualize(selectedStyle);
     } catch {
       toast({ title: "Generation Failed", description: "Could not generate interior spec. Try again.", variant: "destructive" });
     } finally {
@@ -229,43 +270,50 @@ export default function ProjectInterior() {
       ]),
     ];
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `interior-spec-project-${projectId}.txt`;
-    a.click();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `interior-spec-project-${projectId}.txt`; a.click();
     URL.revokeObjectURL(url);
   };
 
   const palette = conceptPalette.length > 0 ? conceptPalette : interior?.colorPalette ?? [];
+  const hasSpec  = !!interior;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Interior Design</h1>
           <p className="text-sm text-muted-foreground font-mono">Spatial aesthetics and FF&amp;E coordination.</p>
-          {interior?.styleDirection && (
-            <p className="text-xs text-primary font-mono mt-1 leading-relaxed">{interior.styleDescription}</p>
-          )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {hasSpec && !visualizing && Object.keys(spaceImages).length === 0 && (
+            <Button variant="outline" onClick={() => triggerVisualize(selectedStyle)} disabled={visualizing}>
+              <Sparkles className="w-4 h-4 mr-2" />
+              Generate Visuals
+            </Button>
+          )}
+          {visualizing && (
+            <Button variant="outline" disabled>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating visuals…
+            </Button>
+          )}
           <Button variant="outline" onClick={handleExport} disabled={!interior}>
             <Download className="w-4 h-4 mr-2" />
             Export Spec
           </Button>
-          <Button onClick={handleGenerate} disabled={generating}>
+          <Button onClick={handleGenerate} disabled={generating || visualizing}>
             {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sofa className="w-4 h-4 mr-2" />}
             {generating ? "Generating…" : "Generate Interior"}
           </Button>
         </div>
       </div>
 
-      {/* Style direction + palette reference row */}
+      {/* Style picker + palette reference */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Style picker */}
         <Card className="bg-card/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -303,7 +351,6 @@ export default function ProjectInterior() {
           </CardContent>
         </Card>
 
-        {/* Concept palette reference */}
         <Card className="bg-card/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -338,7 +385,7 @@ export default function ProjectInterior() {
         </Card>
       </div>
 
-      {/* Style description + material palette (if generated) */}
+      {/* Style description + material palette */}
       {interior && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           {interior.styleDescription && (
@@ -348,7 +395,6 @@ export default function ProjectInterior() {
             </div>
           )}
 
-          {/* Material palette */}
           {interior.materialPalette?.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -395,7 +441,7 @@ export default function ProjectInterior() {
           return (
             <TabsContent key={space} value={space} className="pt-6">
               {spec ? (
-                <SpacePanel spec={spec} />
+                <SpacePanel spec={spec} imageUrl={spaceImages[space]} space={space} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Sofa className="w-8 h-8 text-muted-foreground/40 mb-3" />
@@ -413,9 +459,7 @@ export default function ProjectInterior() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {interior.ffStrategy && (
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">FF&amp;E Strategy</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">FF&amp;E Strategy</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground leading-relaxed">{interior.ffStrategy}</p>
               </CardContent>
@@ -423,9 +467,7 @@ export default function ProjectInterior() {
           )}
           {interior.sustainabilityNotes && (
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Sustainability Notes</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Sustainability Notes</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground leading-relaxed">{interior.sustainabilityNotes}</p>
               </CardContent>

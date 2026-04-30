@@ -1231,4 +1231,148 @@ colorPalette must be ${conceptPalette.length > 0 ? `these exact hex codes: ${con
   res.json({ interior });
 });
 
+// ─── POST /projects/:id/interior/visualize — Generate space images ────────────
+router.post("/projects/:id/interior/visualize", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const interior = (meta.interior as Record<string, unknown> | undefined) ?? {};
+  const selectedStyle = (req.body as Record<string, unknown>).selectedStyle as string | undefined
+    ?? (interior.selectedStyle as string | undefined)
+    ?? "Contemporary";
+  const styleDesc = (interior.styleDescription as string | undefined) ?? "";
+  const palette: string[] = (interior.colorPalette as string[] | undefined) ?? [];
+
+  const styleDesc2 = styleDesc ? ` ${styleDesc}` : "";
+  const paletteStr = palette.length > 0 ? ` Colour palette: ${palette.join(", ")}.` : "";
+
+  const spacePrompts: Record<string, string> = {
+    lobby:      `Professional architectural interior photograph of a building entrance lobby, ${selectedStyle} style.${styleDesc2}${paletteStr} Dramatic entry space, reception desk, high ceiling with statement lighting fixture, polished floor. No people. Photorealistic, ultra-detailed, architectural photography, natural and artificial lighting, 8K quality.`,
+    workspace:  `Professional architectural interior photograph of a modern open office workspace, ${selectedStyle} style.${styleDesc2}${paletteStr} Collaborative work areas, task lighting, ergonomic furniture, large windows with natural light. No people. Photorealistic, ultra-detailed, architectural photography, 8K quality.`,
+    exhibition: `Professional architectural interior photograph of a contemporary art exhibition gallery, ${selectedStyle} style.${styleDesc2}${paletteStr} Clean gallery walls, track lighting highlighting artwork, polished concrete floor, dramatic ceiling. No people. Photorealistic, ultra-detailed, architectural photography, 8K quality.`,
+    cafe:       `Professional architectural interior photograph of a café and dining space inside a building, ${selectedStyle} style.${styleDesc2}${paletteStr} Casual seating, warm pendant lighting, barista counter, natural materials. No people. Photorealistic, ultra-detailed, architectural photography, 8K quality.`,
+  };
+
+  // Generate all 4 images in parallel
+  const spaces = ["lobby", "workspace", "exhibition", "cafe"] as const;
+  const results = await Promise.allSettled(
+    spaces.map(async (space) => {
+      const buffer = await generateImageBuffer(spacePrompts[space], "1024x1024");
+      const base64 = buffer.toString("base64");
+      return { space, dataUrl: `data:image/png;base64,${base64}` };
+    })
+  );
+
+  const images: Record<string, string> = {};
+  for (const r of results) {
+    if (r.status === "fulfilled") images[r.value.space] = r.value.dataUrl;
+  }
+
+  // Persist image URLs into metadata.interior.spaces[space].imageUrl
+  const interiorSpaces = (interior.spaces as Record<string, Record<string, unknown>> | undefined) ?? {};
+  for (const [space, dataUrl] of Object.entries(images)) {
+    interiorSpaces[space] = { ...(interiorSpaces[space] ?? {}), imageUrl: dataUrl };
+  }
+  const updatedInterior = { ...interior, spaces: interiorSpaces };
+  const updatedMeta2 = { ...meta, interior: updatedInterior };
+  await db.update(projectsTable).set({ metadata: updatedMeta2 }).where(eq(projectsTable.id, id));
+
+  res.json({ images });
+});
+
+// ─── POST /projects/:id/landscape — AI Landscape Design ──────────────────────
+router.post("/projects/:id/landscape", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const concepts = (meta.concepts as { title: string; narrative: string; tags: string[]; materials?: string[]; palette?: string[] }[] | undefined) ?? [];
+  const bodyIdx = typeof (req.body as Record<string, unknown>).selectedConceptIdx === "number"
+    ? (req.body as Record<string, unknown>).selectedConceptIdx as number : undefined;
+  const selectedConceptIdx = bodyIdx ?? (meta.selectedConceptIdx as number | undefined) ?? 0;
+  const selectedConcept = concepts[selectedConceptIdx] ?? concepts[0];
+  const conceptPalette = selectedConcept?.palette ?? [];
+
+  const briefData = (meta.brief as { styles?: string[]; mustHave?: string; avoid?: string; budgetPriority?: number } | undefined) ?? {};
+  const selectedStyles = briefData.styles ?? [];
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 2500,
+    messages: [
+      { role: "system", content: "You are a specialist landscape architect and site designer. Return ONLY valid JSON, no markdown." },
+      { role: "user", content: `Generate a comprehensive landscape design specification for a ${project.projectType} building.
+
+Project: ${project.name}
+Design Concept: ${selectedConcept ? `"${selectedConcept.title}" — ${selectedConcept.narrative}` : "Not defined"}
+Concept Colour Palette: ${conceptPalette.length > 0 ? conceptPalette.join(", ") : "earthy naturals"}
+Client Style Preferences: ${selectedStyles.length > 0 ? selectedStyles.join(", ") : "Contemporary, Sustainable"}
+
+Return JSON:
+{
+  "designPhilosophy": "...",
+  "hardscape": {
+    "primaryPaving": "...",
+    "retainingElements": "...",
+    "boundaryTreatment": "...",
+    "entrySequence": "..."
+  },
+  "softscape": {
+    "plantingStrategy": "...",
+    "featuredSpecies": ["species1", "species2", "species3", "species4"],
+    "groundCover": "...",
+    "treePlanting": "...",
+    "seasonalInterest": "..."
+  },
+  "waterManagement": {
+    "strategy": "...",
+    "bioswales": "...",
+    "cisterns": "...",
+    "surfaceRunoff": "..."
+  },
+  "lighting": {
+    "pathLighting": "...",
+    "accentLighting": "...",
+    "securityLighting": "..."
+  },
+  "performance": {
+    "permeableArea": 60,
+    "canopyCoverage10yr": 40,
+    "biodiversityScore": 7,
+    "stormwaterReduction": 80
+  },
+  "sustainability": "...",
+  "maintenanceSchedule": "...",
+  "estimatedImplementationCost": "..."
+}` }
+    ],
+  });
+
+  let landscape: Record<string, unknown>;
+  try {
+    let content = completion.choices[0]?.message?.content ?? "{}";
+    content = content.replace(/^```(?:json)?\s*/im, "").replace(/\s*```\s*$/im, "").trim();
+    const fb = content.indexOf("{"), lb = content.lastIndexOf("}");
+    if (fb >= 0 && lb !== -1) content = content.slice(fb, lb + 1);
+    landscape = JSON.parse(content) as Record<string, unknown>;
+  } catch (err) {
+    console.error("Landscape JSON parse failed:", err);
+    res.status(500).json({ error: "Failed to parse AI response" }); return;
+  }
+
+  landscape.generatedAt = new Date().toISOString();
+  if (conceptPalette.length > 0) landscape.colorPalette = conceptPalette;
+
+  const updatedMeta = { ...meta, landscape };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+  res.json({ landscape });
+});
+
 export default router;
