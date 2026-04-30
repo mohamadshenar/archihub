@@ -4,9 +4,6 @@ import { Download, Printer, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
 import { useState, useEffect, useRef } from "react";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
-import { useToast } from "@/hooks/use-toast";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -355,8 +352,6 @@ function SiteAnalysisDiagram({ siteAn, latitude, longitude }: {
 export default function ProjectPresentation() {
   const params    = useParams();
   const projectId = parseInt(params.id || "0");
-  const { toast } = useToast();
-
   const [proj,      setProj]      = useState<ProjectData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -392,76 +387,52 @@ export default function ProjectPresentation() {
   const totalGFA = floors.reduce((sum, f) => sum + (f.areaPerFloor || 0), 0);
 
   const posterRef = useRef<HTMLDivElement>(null);
-  const [exporting, setExporting] = useState(false);
-
   const handlePrint = () => window.print();
 
-  const handleExportPDF = async () => {
-    const el = posterRef.current;
-    if (!el) return;
-    setExporting(true);
-
-    /* ── Step 1: pre-convert all external <img> srcs to data URLs so
-       html2canvas never sees a cross-origin resource (avoids SecurityError
-       on toDataURL) ── */
-    const imgEls = Array.from(el.querySelectorAll<HTMLImageElement>("img[src]"));
-    const origSrcs = new Map<HTMLImageElement, string>();
-
-    await Promise.allSettled(imgEls.map(async (img) => {
-      const src = img.getAttribute("src") ?? "";
-      if (!src || src.startsWith("data:")) return;
-      origSrcs.set(img, src);
-      try {
-        const res = await fetch(src, { mode: "cors" });
-        const blob = await res.blob();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        img.src = dataUrl;
-      } catch {
-        /* if CORS fetch fails, hide rather than taint the canvas */
-        img.style.visibility = "hidden";
-      }
-    }));
-
-    try {
-      /* ── Step 2: capture poster ── */
-      const canvas = await html2canvas(el, {
-        useCORS: false,
-        allowTaint: false,
-        scale: 2,
-        backgroundColor: "#0b0b0f",
-        logging: false,
-      });
-
-      /* ── Step 3: restore original srcs ── */
-      origSrcs.forEach((src, img) => {
-        img.src = src;
-        img.style.visibility = "";
-      });
-
-      /* ── Step 4: build PDF sized to match the poster aspect ratio ── */
-      const W = canvas.width / 2;
-      const H = canvas.height / 2;
-      const pdf = new jsPDF({
-        orientation: W > H ? "landscape" : "portrait",
-        unit: "px",
-        format: [W, H],
-        compress: true,
-      });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, W, H);
-      pdf.save(`${proj?.name ?? "presentation"}-archi-hub.pdf`);
-      toast({ title: "PDF Exported", description: "Your presentation has been saved." });
-    } catch (e) {
-      console.error("PDF export error", e);
-      origSrcs.forEach((src, img) => { img.src = src; img.style.visibility = ""; });
-      toast({ title: "Export Failed", description: "Could not generate PDF. Please try again.", variant: "destructive" });
-    } finally {
-      setExporting(false);
+  const handleExportPDF = () => {
+    /* Inject a one-shot print stylesheet that:
+       1. Forces ALL background colors / images to print (print-color-adjust)
+       2. Hides everything except #poster-board via the visibility trick
+       3. Stretches the poster to fill the page
+       The style is removed after the print dialog closes. */
+    const STYLE_ID = "archi-pdf-print";
+    if (!document.getElementById(STYLE_ID)) {
+      const s = document.createElement("style");
+      s.id = STYLE_ID;
+      s.textContent = `
+        @media print {
+          @page { margin: 0; size: auto; }
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          body * { visibility: hidden !important; }
+          #poster-board, #poster-board * {
+            visibility: visible !important;
+          }
+          #poster-board {
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            overflow: visible !important;
+          }
+        }
+      `;
+      document.head.appendChild(s);
     }
+
+    window.print();
+
+    /* Clean up after dialog */
+    window.addEventListener("afterprint", () => {
+      document.getElementById(STYLE_ID)?.remove();
+    }, { once: true });
   };
 
   if (isLoading) {
@@ -484,9 +455,8 @@ export default function ProjectPresentation() {
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />Print
           </Button>
-          <Button onClick={handleExportPDF} disabled={exporting}>
-            {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-            {exporting ? "Generating…" : "Export PDF"}
+          <Button onClick={handleExportPDF}>
+            <Download className="w-4 h-4 mr-2" />Export PDF
           </Button>
         </div>
       </div>
