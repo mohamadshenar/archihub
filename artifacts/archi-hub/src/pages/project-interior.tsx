@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, Sparkles, History, Wand2, X, RotateCcw, Send } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, Sparkles, History, Wand2, X, RotateCcw, Send, Maximize2, LayoutTemplate, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
@@ -59,11 +60,12 @@ const STYLE_OPTIONS = [
 ];
 
 function SpacePanel({
-  spec, imageUrl, visualizing,
+  spec, imageUrl, visualizing, onImageClick,
 }: {
   spec: SpaceSpec;
   imageUrl?: string;
   visualizing?: boolean;
+  onImageClick?: (url: string) => void;
 }) {
   const rows = [
     { label: "Lighting Mood",      value: spec.lightingMood },
@@ -108,16 +110,20 @@ function SpacePanel({
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="relative rounded-xl overflow-hidden border border-border/40"
+            className={`relative rounded-xl overflow-hidden border border-border/40 group ${onImageClick ? "cursor-zoom-in" : ""}`}
+            onClick={() => onImageClick?.(aiImg)}
           >
             <img
               src={aiImg}
               alt="Lobby interior visualisation"
-              className="w-full object-cover"
+              className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               style={{ maxHeight: 420 }}
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 to-transparent px-4 py-3">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 to-transparent px-4 py-3 flex items-end justify-between">
               <p className="text-white text-xs font-mono uppercase tracking-widest opacity-90">AI Visualisation · Lobby</p>
+              {onImageClick && (
+                <p className="text-white/50 text-[9px] font-mono opacity-0 group-hover:opacity-100 transition-opacity">click to expand</p>
+              )}
             </div>
           </motion.div>
         ) : (
@@ -161,7 +167,10 @@ export default function ProjectInterior() {
   const [editPrompt,     setEditPrompt]     = useState("");
   const [editing,        setEditing]        = useState(false);
   const [historyOpen,    setHistoryOpen]    = useState(false);
+  const [lightboxUrl,    setLightboxUrl]    = useState<string | null>(null);
+  const [presentationSent, setPresentationSent] = useState<string | null>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const [, navigate]  = useLocation();
 
   const loadMeta = useCallback(async () => {
     if (!projectId) return;
@@ -255,6 +264,20 @@ export default function ProjectInterior() {
       toast({ title: "Edit Failed", variant: "destructive" });
     } finally {
       setEditing(false);
+    }
+  }, [projectId, toast]);
+
+  const sendToPresentation = useCallback(async (imageUrl: string) => {
+    try {
+      await fetch(`${BASE}/api/projects/${projectId}/interior/presentation-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      });
+      setPresentationSent(imageUrl);
+      toast({ title: "Sent to Final Presentation", description: "Navigate to Final Presentation to see it on the poster board." });
+    } catch {
+      toast({ title: "Failed to send", variant: "destructive" });
     }
   }, [projectId, toast]);
 
@@ -380,27 +403,48 @@ export default function ProjectInterior() {
                         >
                           <RotateCcw className="w-3 h-3 mr-1" />Restore
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 text-xs"
+                          onClick={(e) => { e.stopPropagation(); setLightboxUrl(entry.imageUrl); }}
+                        >
+                          <Maximize2 className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="p-2.5 space-y-1">
+                    <div className="p-2.5 space-y-1.5">
                       <p className="text-[10px] font-mono font-medium text-foreground truncate">{entry.style}</p>
                       <p className="text-[9px] text-muted-foreground/60">{new Date(entry.generatedAt).toLocaleString()}</p>
                       {entry.editPrompt && (
-                        <p className="text-[9px] text-primary/70 italic leading-snug">"{entry.editPrompt}"</p>
+                        <p className="text-[9px] text-primary/70 italic leading-snug line-clamp-2">"{entry.editPrompt}"</p>
                       )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-6 text-[10px] mt-1"
-                        onClick={() => {
-                          setSpaceImages({ lobby: entry.imageUrl });
-                          setEditPrompt(entry.editPrompt ? `Based on previous: ${entry.editPrompt}. ` : "");
-                          setHistoryOpen(false);
-                          setTimeout(() => editInputRef.current?.focus(), 100);
-                        }}
-                      >
-                        <Wand2 className="w-3 h-3 mr-1" />Edit this one
-                      </Button>
+                      <div className="flex gap-1 pt-0.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-6 text-[9px]"
+                          onClick={() => {
+                            setSpaceImages({ lobby: entry.imageUrl });
+                            setEditPrompt(entry.editPrompt ? `Based on previous: ${entry.editPrompt}. ` : "");
+                            setHistoryOpen(false);
+                            setTimeout(() => editInputRef.current?.focus(), 100);
+                          }}
+                        >
+                          <Wand2 className="w-2.5 h-2.5 mr-1" />Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={presentationSent === entry.imageUrl ? "default" : "outline"}
+                          className="flex-1 h-6 text-[9px]"
+                          onClick={() => { sendToPresentation(entry.imageUrl); setHistoryOpen(false); }}
+                        >
+                          {presentationSent === entry.imageUrl
+                            ? <><Check className="w-2.5 h-2.5 mr-1" />Sent</>
+                            : <><LayoutTemplate className="w-2.5 h-2.5 mr-1" />Presentation</>
+                          }
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -565,6 +609,7 @@ export default function ProjectInterior() {
               spec={interior.spaces.lobby}
               imageUrl={spaceImages["lobby"]}
               visualizing={visualizing}
+              onImageClick={setLightboxUrl}
             />
 
             {/* ─── Edit Prompt ─────────────────────────────────────────── */}
@@ -659,6 +704,48 @@ export default function ProjectInterior() {
       )}
 
       <WorkflowNav projectId={projectId} />
+
+      {/* ─── Lightbox ──────────────────────────────────────────────────────── */}
+      <Dialog open={!!lightboxUrl} onOpenChange={open => !open && setLightboxUrl(null)}>
+        <DialogContent className="max-w-5xl p-0 overflow-hidden bg-black border-border/30">
+          <div className="relative">
+            {lightboxUrl && (
+              <img
+                src={lightboxUrl}
+                alt="Lobby interior — full view"
+                className="w-full h-auto max-h-[90vh] object-contain"
+              />
+            )}
+            {/* action bar */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-5 py-4 flex items-center justify-between gap-3">
+              <p className="text-white/70 text-xs font-mono uppercase tracking-widest">AI Visualisation · Lobby</p>
+              <div className="flex gap-2">
+                {lightboxUrl && (
+                  <Button
+                    size="sm"
+                    variant={presentationSent === lightboxUrl ? "default" : "outline"}
+                    className="h-7 text-xs border-white/20 text-white hover:bg-white/10"
+                    onClick={() => { sendToPresentation(lightboxUrl); setLightboxUrl(null); }}
+                  >
+                    {presentationSent === lightboxUrl
+                      ? <><Check className="w-3 h-3 mr-1.5" />Sent to Presentation</>
+                      : <><LayoutTemplate className="w-3 h-3 mr-1.5" />Send to Presentation</>
+                    }
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-white/60 hover:text-white hover:bg-white/10"
+                  onClick={() => setLightboxUrl(null)}
+                >
+                  <X className="w-3 h-3 mr-1" />Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

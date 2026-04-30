@@ -132,7 +132,7 @@ export default function ProjectPresentation() {
   const exterior    = meta.exterior as Exterior | undefined;
   const brief       = meta.brief as Brief | undefined;
   const regs        = (meta as Record<string, unknown>).regulations as Regulations | undefined;
-  const lobbyImg    = interior?.spaces?.lobby?.imageUrl;
+  const lobbyImg    = (meta.presentationLobbyImage as string | undefined) ?? interior?.spaces?.lobby?.imageUrl;
 
   /* total GFA */
   const floors = program?.floors ?? [];

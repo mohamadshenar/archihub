@@ -1283,6 +1283,24 @@ router.post("/projects/:id/interior/visualize", async (req, res) => {
   res.json({ images, interiorImageHistory });
 });
 
+// ─── POST /projects/:id/interior/presentation-image — Pin image to presentation
+router.post("/projects/:id/interior/presentation-image", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const imageUrl = ((req.body as Record<string, unknown>).imageUrl as string | undefined)?.trim() ?? "";
+  if (!imageUrl) { res.status(400).json({ error: "imageUrl is required" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const updatedMeta = { ...meta, presentationLobbyImage: imageUrl };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+
+  res.json({ ok: true });
+});
+
 // ─── POST /projects/:id/interior/visualize/edit — Edit lobby image ───────────
 router.post("/projects/:id/interior/visualize/edit", async (req, res) => {
   const id = parseInt(req.params.id);
