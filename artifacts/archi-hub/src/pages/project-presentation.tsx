@@ -3,17 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Download, Printer, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
-import { useState, useEffect } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-
-/* fix leaflet default icon paths */
-delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
+import { useState, useEffect, useRef } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -116,6 +108,66 @@ function short(text: string | undefined, maxLen = 80): string {
   return firstSentence.length <= maxLen ? firstSentence : firstSentence.slice(0, maxLen) + "…";
 }
 
+/* ─── static OSM/CartoDB tile grid (replaces Leaflet, works with html2canvas) ── */
+function latLngToTile(lat: number, lng: number, zoom: number) {
+  const n = 2 ** zoom;
+  const x = Math.floor((lng + 180) / 360 * n);
+  const sinLat = Math.sin(lat * Math.PI / 180);
+  const y = Math.floor((1 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) / 2 * n);
+  const fx = (lng + 180) / 360 * n - x;
+  const fy = (1 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * n - y;
+  return { x, y, fx, fy };
+}
+
+function StaticMapTiles({ lat, lng, zoom = 16, height = 300 }: {
+  lat: number; lng: number; zoom?: number; height?: number;
+}) {
+  const TILE = 256;
+  const COLS = 7;
+  const ROWS = 5;
+  const { x: tx, y: ty, fx, fy } = latLngToTile(lat, lng, zoom);
+  const startX = tx - Math.floor(COLS / 2);
+  const startY = ty - Math.floor(ROWS / 2);
+  const offsetX = -fx * TILE + (TILE * Math.floor(COLS / 2));
+  const offsetY = -fy * TILE + (TILE * Math.floor(ROWS / 2));
+  const subs = ["a", "b", "c", "d"];
+  return (
+    <div style={{
+      position: "absolute", inset: 0,
+      filter: "brightness(0.55) sepia(0.55) saturate(2.8) hue-rotate(5deg) contrast(1.3)",
+      overflow: "hidden", height,
+    }}>
+      <div style={{
+        position: "absolute",
+        top: `calc(50% - ${TILE * ROWS / 2}px + ${offsetY}px)`,
+        left: `calc(50% - ${TILE * COLS / 2}px + ${offsetX}px)`,
+        display: "grid",
+        gridTemplateColumns: `repeat(${COLS}, ${TILE}px)`,
+        gridTemplateRows: `repeat(${ROWS}, ${TILE}px)`,
+        width: TILE * COLS,
+        height: TILE * ROWS,
+      }}>
+        {Array.from({ length: ROWS }, (_, r) =>
+          Array.from({ length: COLS }, (_, c) => {
+            const s = subs[(startX + c + startY + r) % subs.length];
+            return (
+              <img
+                key={`${r}-${c}`}
+                src={`https://${s}.basemaps.cartocdn.com/dark_all/${zoom}/${startX + c}/${startY + r}.png`}
+                crossOrigin="anonymous"
+                width={TILE}
+                height={TILE}
+                style={{ display: "block" }}
+                alt=""
+              />
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── site analysis diagram ───────────────────────────────────────────── */
 function parseWindLabel(text: string): string {
   const lc = (text ?? "").toLowerCase();
@@ -174,31 +226,8 @@ function SiteAnalysisDiagram({ siteAn, latitude, longitude }: {
   return (
     <div style={{ position: "relative", width: "100%", height: 300, overflow: "hidden" }}>
 
-      {/* ── Map tiles with amber/dark filter ──
-          Base: CartoDB Dark Matter (near-black bg, white/gray roads)
-          Filter: darken + half-sepia → dark bg, warm amber roads ── */}
-      <div style={{
-        position: "absolute", inset: 0,
-        filter: "brightness(0.55) sepia(0.55) saturate(2.8) hue-rotate(5deg) contrast(1.3)",
-      }}>
-        <MapContainer
-          center={[lat, lng]}
-          zoom={16}
-          zoomControl={false}
-          dragging={false}
-          scrollWheelZoom={false}
-          doubleClickZoom={false}
-          touchZoom={false}
-          keyboard={false}
-          attributionControl={false}
-          style={{ height: "100%", width: "100%", zIndex: 1 }}
-        >
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            subdomains={["a","b","c","d"]}
-          />
-        </MapContainer>
-      </div>
+      {/* ── Static CartoDB Dark tiles (img-based, works on screen + in html2canvas PDF) ── */}
+      <StaticMapTiles lat={lat} lng={lng} zoom={16} height={300} />
 
       {/* ── Subtle vignette to ground the overlay ── */}
       <div style={{
@@ -321,9 +350,38 @@ export default function ProjectPresentation() {
   const floors = program?.floors ?? [];
   const totalGFA = floors.reduce((sum, f) => sum + (f.areaPerFloor || 0), 0);
 
-  const handlePrint = () => {
-    document.title = `${proj?.name ?? "Project"} — Final Presentation`;
-    window.print();
+  const posterRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handlePrint = () => window.print();
+
+  const handleExportPDF = async () => {
+    const el = posterRef.current;
+    if (!el) return;
+    setExporting(true);
+    try {
+      const canvas = await html2canvas(el, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2,
+        backgroundColor: "#0b0b0f",
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const landscape = canvas.width > canvas.height;
+      const pdf = new jsPDF({
+        orientation: landscape ? "landscape" : "portrait",
+        unit: "px",
+        format: [canvas.width / 2, canvas.height / 2],
+        compress: true,
+      });
+      pdf.addImage(imgData, "JPEG", 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`${proj?.name ?? "presentation"}-archi-hub.pdf`);
+    } catch (e) {
+      console.error("PDF export error", e);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -346,8 +404,9 @@ export default function ProjectPresentation() {
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />Print
           </Button>
-          <Button onClick={handlePrint}>
-            <Download className="w-4 h-4 mr-2" />Export PDF
+          <Button onClick={handleExportPDF} disabled={exporting}>
+            {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            {exporting ? "Generating…" : "Export PDF"}
           </Button>
         </div>
       </div>
@@ -355,6 +414,7 @@ export default function ProjectPresentation() {
       {/* ───── POSTER ───── */}
       <div
         id="poster-board"
+        ref={posterRef}
         data-print-poster
         className="w-full rounded-xl overflow-hidden border border-white/10 shadow-2xl"
         style={{ background: "#0b0b0f", fontFamily: "'Space Mono', monospace" }}
