@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, Sparkles } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, Sparkles, History, Wand2, X, RotateCcw, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
@@ -155,8 +156,12 @@ export default function ProjectInterior() {
   const [generating,     setGenerating]     = useState(false);
   const [visualizing,    setVisualizing]    = useState(false);
   const [spaceImages,    setSpaceImages]    = useState<Record<string, string>>({});
-  const [imageHistory,   setImageHistory]   = useState<{ imageUrl: string; style: string; generatedAt: string }[]>([]);
+  const [imageHistory,   setImageHistory]   = useState<{ imageUrl: string; style: string; generatedAt: string; editPrompt?: string }[]>([]);
   const [metaLoaded,     setMetaLoaded]     = useState(false);
+  const [editPrompt,     setEditPrompt]     = useState("");
+  const [editing,        setEditing]        = useState(false);
+  const [historyOpen,    setHistoryOpen]    = useState(false);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   const loadMeta = useCallback(async () => {
     if (!projectId) return;
@@ -225,6 +230,31 @@ export default function ProjectInterior() {
       toast({ title: "Visualisation Failed", description: "Could not generate space images.", variant: "destructive" });
     } finally {
       setVisualizing(false);
+    }
+  }, [projectId, toast]);
+
+  const handleEditGenerate = useCallback(async (prompt: string) => {
+    if (!prompt.trim()) return;
+    setEditing(true);
+    try {
+      const res = await fetch(`${BASE}/api/projects/${projectId}/interior/visualize/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ editPrompt: prompt.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json() as {
+        imageUrl: string;
+        interiorImageHistory?: { imageUrl: string; style: string; generatedAt: string; editPrompt?: string }[];
+      };
+      setSpaceImages({ lobby: data.imageUrl });
+      if (data.interiorImageHistory) setImageHistory(data.interiorImageHistory);
+      setEditPrompt("");
+      toast({ title: "Edit Applied", description: "New visualisation generated with your edit." });
+    } catch {
+      toast({ title: "Edit Failed", variant: "destructive" });
+    } finally {
+      setEditing(false);
     }
   }, [projectId, toast]);
 
@@ -312,7 +342,72 @@ export default function ProjectInterior() {
           <h1 className="text-2xl font-bold tracking-tight">Interior Design</h1>
           <p className="text-sm text-muted-foreground font-mono">Spatial aesthetics and FF&amp;E coordination.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          {/* History drawer trigger */}
+          <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="relative" disabled={imageHistory.length === 0}>
+                <History className="w-4 h-4 mr-2" />
+                History
+                {imageHistory.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {imageHistory.length}
+                  </span>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+              <SheetHeader className="mb-4">
+                <SheetTitle className="font-mono text-sm uppercase tracking-widest">Generation History</SheetTitle>
+                <p className="text-xs text-muted-foreground">{imageHistory.length} visualisation{imageHistory.length !== 1 ? "s" : ""} · click any to restore as current</p>
+              </SheetHeader>
+              <div className="grid grid-cols-2 gap-3">
+                {[...imageHistory].reverse().map((entry, i) => (
+                  <div key={i} className="group rounded-xl overflow-hidden border border-border/40 hover:border-primary/50 transition-colors bg-muted/10">
+                    <div className="relative aspect-square overflow-hidden">
+                      <img src={entry.imageUrl} alt={entry.style} className="w-full h-full object-cover" />
+                      {i === 0 && (
+                        <div className="absolute top-2 left-2 bg-primary/90 rounded px-1.5 py-0.5">
+                          <span className="text-[9px] font-mono font-bold text-black">Latest</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 text-xs"
+                          onClick={() => { setSpaceImages({ lobby: entry.imageUrl }); setHistoryOpen(false); }}
+                        >
+                          <RotateCcw className="w-3 h-3 mr-1" />Restore
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-2.5 space-y-1">
+                      <p className="text-[10px] font-mono font-medium text-foreground truncate">{entry.style}</p>
+                      <p className="text-[9px] text-muted-foreground/60">{new Date(entry.generatedAt).toLocaleString()}</p>
+                      {entry.editPrompt && (
+                        <p className="text-[9px] text-primary/70 italic leading-snug">"{entry.editPrompt}"</p>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-6 text-[10px] mt-1"
+                        onClick={() => {
+                          setSpaceImages({ lobby: entry.imageUrl });
+                          setEditPrompt(entry.editPrompt ? `Based on previous: ${entry.editPrompt}. ` : "");
+                          setHistoryOpen(false);
+                          setTimeout(() => editInputRef.current?.focus(), 100);
+                        }}
+                      >
+                        <Wand2 className="w-3 h-3 mr-1" />Edit this one
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+
           {hasSpec && !visualizing && Object.keys(spaceImages).length === 0 && (
             <Button variant="outline" onClick={() => triggerVisualize(selectedStyle)} disabled={visualizing}>
               <Sparkles className="w-4 h-4 mr-2" />
@@ -465,11 +560,73 @@ export default function ProjectInterior() {
           <span className="text-sm font-mono uppercase tracking-widest text-primary">Lobby</span>
         </div>
         {interior?.spaces?.lobby ? (
-          <SpacePanel
-            spec={interior.spaces.lobby}
-            imageUrl={spaceImages["lobby"]}
-            visualizing={visualizing}
-          />
+          <div className="space-y-4">
+            <SpacePanel
+              spec={interior.spaces.lobby}
+              imageUrl={spaceImages["lobby"]}
+              visualizing={visualizing}
+            />
+
+            {/* ─── Edit Prompt ─────────────────────────────────────────── */}
+            {(spaceImages["lobby"] || interior.spaces.lobby.imageUrl) && !visualizing && (
+              <div className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wand2 className="w-4 h-4 text-primary" />
+                  <span className="text-[11px] font-mono uppercase tracking-widest text-primary">Edit Visualisation</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Describe a specific change to apply — lighting mood, material, colour temperature, viewpoint, time of day, etc.
+                </p>
+                <div className="flex gap-2 items-start">
+                  <textarea
+                    ref={editInputRef}
+                    value={editPrompt}
+                    onChange={e => setEditPrompt(e.target.value)}
+                    placeholder='e.g. "warmer amber lighting at dusk", "add tall potted olive trees", "marble floor instead of terrazzo", "switch to rainy evening atmosphere"'
+                    rows={2}
+                    disabled={editing}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        handleEditGenerate(editPrompt);
+                      }
+                    }}
+                    className="flex-1 resize-none rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50"
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <Button
+                      onClick={() => handleEditGenerate(editPrompt)}
+                      disabled={editing || !editPrompt.trim()}
+                      size="sm"
+                      className="h-9 px-3"
+                    >
+                      {editing
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <Send className="w-4 h-4" />
+                      }
+                    </Button>
+                    {editPrompt && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 px-3"
+                        onClick={() => setEditPrompt("")}
+                        disabled={editing}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {editing && (
+                  <p className="text-[10px] font-mono text-muted-foreground/60 animate-pulse">
+                    Generating edited visualisation… this takes ~20 seconds
+                  </p>
+                )}
+                <p className="text-[9px] text-muted-foreground/40 font-mono">⌘ Enter to submit</p>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="rounded-xl border border-dashed border-border/50 bg-muted/10 flex flex-col items-center justify-center gap-2 py-16 text-center">
             <Sofa className="w-8 h-8 text-muted-foreground/40 mb-1" />
@@ -478,39 +635,6 @@ export default function ProjectInterior() {
           </div>
         )}
       </div>
-
-      {/* Image History Strip */}
-      {imageHistory.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 border-b border-border/50 pb-2">
-            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">Generation History</span>
-            <span className="text-[9px] font-mono text-muted-foreground/50">({imageHistory.length} visual{imageHistory.length !== 1 ? "s" : ""})</span>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-            {[...imageHistory].reverse().map((entry, i) => (
-              <div
-                key={i}
-                className="relative shrink-0 rounded-lg overflow-hidden border border-border/40 group cursor-pointer hover:border-primary/50 transition-colors"
-                style={{ width: 140, height: 90 }}
-                onClick={() => setSpaceImages({ lobby: entry.imageUrl })}
-                title={`${entry.style} · ${new Date(entry.generatedAt).toLocaleString()}`}
-              >
-                <img src={entry.imageUrl} alt={entry.style} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-1.5 gap-0.5">
-                  <p className="text-[8px] font-mono text-white/90 leading-tight truncate">{entry.style}</p>
-                  <p className="text-[7px] font-mono text-white/50">{new Date(entry.generatedAt).toLocaleDateString()}</p>
-                </div>
-                {i === 0 && (
-                  <div className="absolute top-1 left-1 bg-primary/80 rounded px-1 py-0.5">
-                    <span className="text-[7px] font-mono text-black font-bold">Latest</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="text-[9px] text-muted-foreground/50 font-mono">Click any thumbnail to restore it as the current visual.</p>
-        </div>
-      )}
 
       {/* FF&E + Sustainability */}
       {interior && (

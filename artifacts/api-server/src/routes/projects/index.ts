@@ -1283,6 +1283,63 @@ router.post("/projects/:id/interior/visualize", async (req, res) => {
   res.json({ images, interiorImageHistory });
 });
 
+// ─── POST /projects/:id/interior/visualize/edit — Edit lobby image ───────────
+router.post("/projects/:id/interior/visualize/edit", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid project id" }); return; }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+
+  const meta = (project.metadata as Record<string, unknown>) ?? {};
+  const interior = (meta.interior as Record<string, unknown> | undefined) ?? {};
+  const editPrompt = ((req.body as Record<string, unknown>).editPrompt as string | undefined)?.trim() ?? "";
+  if (!editPrompt) { res.status(400).json({ error: "editPrompt is required" }); return; }
+
+  const selectedStyle = (interior.selectedStyle as string | undefined) ?? "Contemporary";
+  const styleDesc     = (interior.styleDescription as string | undefined) ?? "";
+  const palette: string[] = (interior.colorPalette as string[] | undefined) ?? [];
+  const lobbySpec = ((interior.spaces as Record<string, unknown> | undefined)?.lobby as Record<string, unknown> | undefined) ?? {};
+
+  const styleDesc2 = styleDesc ? ` ${styleDesc}` : "";
+  const paletteStr = palette.length > 0 ? ` Colour palette: ${palette.join(", ")}.` : "";
+  const specStr    = [
+    lobbySpec.lightingMood    ? `Lighting: ${lobbySpec.lightingMood}.`   : "",
+    lobbySpec.primaryFinish   ? `Primary finish: ${lobbySpec.primaryFinish}.` : "",
+    lobbySpec.flooringMaterial ? `Floor: ${lobbySpec.flooringMaterial}.` : "",
+    lobbySpec.ceilingTreatment ? `Ceiling: ${lobbySpec.ceilingTreatment}.` : "",
+  ].filter(Boolean).join(" ");
+
+  const basePrompt = `Professional architectural interior photograph of a building entrance lobby, ${selectedStyle} style.${styleDesc2}${paletteStr} ${specStr} No people. Photorealistic, ultra-detailed, architectural photography, natural and artificial lighting, 8K quality.`;
+  const fullPrompt = `${basePrompt} EDIT INSTRUCTION: ${editPrompt}.`;
+
+  let imageBuffer: Buffer;
+  try {
+    imageBuffer = await generateImageBuffer(fullPrompt, "1024x1024");
+  } catch (err) {
+    console.error("Image edit generation failed:", err);
+    res.status(500).json({ error: "Image generation failed" }); return;
+  }
+
+  const dataUrl = `data:image/png;base64,${imageBuffer.toString("base64")}`;
+
+  // Save as current lobby image + append to history
+  const interiorSpaces = ((interior.spaces as Record<string, Record<string, unknown>> | undefined) ?? {});
+  interiorSpaces.lobby = { ...(interiorSpaces.lobby ?? {}), imageUrl: dataUrl };
+  const updatedInterior = { ...interior, spaces: interiorSpaces };
+
+  const existingHistory = (meta.interiorImageHistory as { imageUrl: string; style: string; generatedAt: string; editPrompt?: string }[] | undefined) ?? [];
+  const interiorImageHistory = [
+    ...existingHistory,
+    { imageUrl: dataUrl, style: selectedStyle, generatedAt: new Date().toISOString(), editPrompt },
+  ].slice(-10);
+
+  const updatedMeta = { ...meta, interior: updatedInterior, interiorImageHistory };
+  await db.update(projectsTable).set({ metadata: updatedMeta }).where(eq(projectsTable.id, id));
+
+  res.json({ imageUrl: dataUrl, interiorImageHistory });
+});
+
 // ─── POST /projects/:id/landscape — AI Landscape Design ──────────────────────
 router.post("/projects/:id/landscape", async (req, res) => {
   const id = parseInt(req.params.id);
