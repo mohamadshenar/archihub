@@ -27,7 +27,6 @@ import ProjectInterior from "@/pages/project-interior";
 import ProjectLandscape from "@/pages/project-landscape";
 import ProjectSustainability from "@/pages/project-sustainability";
 import ProjectRegulations from "@/pages/project-regulations";
-import ProjectVisualization from "@/pages/project-visualization";
 import ProjectPresentation from "@/pages/project-presentation";
 import ProjectExport from "@/pages/project-export";
 
@@ -169,13 +168,6 @@ function Router() {
         {() => (
           <ProjectLayout>
             <ProjectRegulations />
-          </ProjectLayout>
-        )}
-      </Route>
-      <Route path="/projects/:id/visualization">
-        {() => (
-          <ProjectLayout>
-            <ProjectVisualization />
           </ProjectLayout>
         )}
       </Route>

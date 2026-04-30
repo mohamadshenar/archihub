@@ -155,6 +155,7 @@ export default function ProjectInterior() {
   const [generating,     setGenerating]     = useState(false);
   const [visualizing,    setVisualizing]    = useState(false);
   const [spaceImages,    setSpaceImages]    = useState<Record<string, string>>({});
+  const [imageHistory,   setImageHistory]   = useState<{ imageUrl: string; style: string; generatedAt: string }[]>([]);
   const [metaLoaded,     setMetaLoaded]     = useState(false);
 
   const loadMeta = useCallback(async () => {
@@ -163,19 +164,22 @@ export default function ProjectInterior() {
       const res = await fetch(`${BASE}/api/projects/${projectId}/metadata`, { cache: "no-store" });
       if (!res.ok) return;
       const meta = await res.json() as {
-        interior?:          InteriorDesign;
-        concepts?:          { palette?: string[] }[];
-        selectedConceptIdx?: number;
+        interior?:             InteriorDesign;
+        concepts?:             { palette?: string[] }[];
+        selectedConceptIdx?:   number;
+        interiorImageHistory?: { imageUrl: string; style: string; generatedAt: string }[];
       };
       if (meta.interior) {
         setInterior(meta.interior);
         if (meta.interior.selectedStyle) setSelectedStyle(meta.interior.selectedStyle);
-        // Restore any persisted space images
         const imgs: Record<string, string> = {};
         for (const [sp, spec] of Object.entries(meta.interior.spaces ?? {})) {
           if (spec?.imageUrl) imgs[sp] = spec.imageUrl;
         }
         if (Object.keys(imgs).length > 0) setSpaceImages(imgs);
+      }
+      if (meta.interiorImageHistory?.length) {
+        setImageHistory(meta.interiorImageHistory);
       }
       if (meta.concepts?.length) {
         const storedLocal = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
@@ -210,9 +214,13 @@ export default function ProjectInterior() {
         body: JSON.stringify({ selectedStyle: style }),
       });
       if (!res.ok) throw new Error("Failed");
-      const data = await res.json() as { images: Record<string, string> };
+      const data = await res.json() as {
+        images: Record<string, string>;
+        interiorImageHistory?: { imageUrl: string; style: string; generatedAt: string }[];
+      };
       setSpaceImages(data.images);
-      toast({ title: "Visuals Ready", description: "Interior visualisations generated for all spaces." });
+      if (data.interiorImageHistory) setImageHistory(data.interiorImageHistory);
+      toast({ title: "Visual Generated", description: `Lobby visualisation ready — added to history.` });
     } catch {
       toast({ title: "Visualisation Failed", description: "Could not generate space images.", variant: "destructive" });
     } finally {
@@ -470,6 +478,39 @@ export default function ProjectInterior() {
           </div>
         )}
       </div>
+
+      {/* Image History Strip */}
+      {imageHistory.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 border-b border-border/50 pb-2">
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">Generation History</span>
+            <span className="text-[9px] font-mono text-muted-foreground/50">({imageHistory.length} visual{imageHistory.length !== 1 ? "s" : ""})</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+            {[...imageHistory].reverse().map((entry, i) => (
+              <div
+                key={i}
+                className="relative shrink-0 rounded-lg overflow-hidden border border-border/40 group cursor-pointer hover:border-primary/50 transition-colors"
+                style={{ width: 140, height: 90 }}
+                onClick={() => setSpaceImages({ lobby: entry.imageUrl })}
+                title={`${entry.style} · ${new Date(entry.generatedAt).toLocaleString()}`}
+              >
+                <img src={entry.imageUrl} alt={entry.style} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-1.5 gap-0.5">
+                  <p className="text-[8px] font-mono text-white/90 leading-tight truncate">{entry.style}</p>
+                  <p className="text-[7px] font-mono text-white/50">{new Date(entry.generatedAt).toLocaleDateString()}</p>
+                </div>
+                {i === 0 && (
+                  <div className="absolute top-1 left-1 bg-primary/80 rounded px-1 py-0.5">
+                    <span className="text-[7px] font-mono text-black font-bold">Latest</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-[9px] text-muted-foreground/50 font-mono">Click any thumbnail to restore it as the current visual.</p>
+        </div>
+      )}
 
       {/* FF&E + Sustainability */}
       {interior && (

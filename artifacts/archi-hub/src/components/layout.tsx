@@ -111,7 +111,6 @@ const MISSION_ITEMS = [
   { path: "landscape", label: "Landscape Design", icon: Trees },
   { path: "sustainability", label: "Sustainability", icon: Leaf },
   { path: "regulations", label: "Code & Regulations", icon: FileText },
-  { path: "visualization", label: "Visualization Studio", icon: ImageIcon },
   { path: "presentation", label: "Final Presentation", icon: Presentation },
   { path: "export", label: "Export Files", icon: Download },
 ];

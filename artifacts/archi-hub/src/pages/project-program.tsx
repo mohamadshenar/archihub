@@ -126,8 +126,8 @@ export default function ProjectProgram() {
             </Button>
           )}
           {program && !showForm && (
-            <Link href={`/projects/${projectId}/visualization`}>
-              <Button variant="secondary">Generate Imagery <ArrowRight className="w-4 h-4 ml-2" /></Button>
+            <Link href={`/projects/${projectId}/interior`}>
+              <Button variant="secondary">Interior Design <ArrowRight className="w-4 h-4 ml-2" /></Button>
             </Link>
           )}
         </div>

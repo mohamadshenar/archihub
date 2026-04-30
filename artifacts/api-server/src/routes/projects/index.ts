@@ -1267,10 +1267,20 @@ router.post("/projects/:id/interior/visualize", async (req, res) => {
     interiorSpaces[space] = { ...(interiorSpaces[space] ?? {}), imageUrl: dataUrl };
   }
   const updatedInterior = { ...interior, spaces: interiorSpaces };
-  const updatedMeta2 = { ...meta, interior: updatedInterior };
+
+  // Append to image history (keep last 10 entries)
+  const existingHistory = (meta.interiorImageHistory as { imageUrl: string; style: string; generatedAt: string }[] | undefined) ?? [];
+  const newHistoryEntries = Object.entries(images).map(([, dataUrl]) => ({
+    imageUrl: dataUrl,
+    style: selectedStyle,
+    generatedAt: new Date().toISOString(),
+  }));
+  const interiorImageHistory = [...existingHistory, ...newHistoryEntries].slice(-10);
+
+  const updatedMeta2 = { ...meta, interior: updatedInterior, interiorImageHistory };
   await db.update(projectsTable).set({ metadata: updatedMeta2 }).where(eq(projectsTable.id, id));
 
-  res.json({ images });
+  res.json({ images, interiorImageHistory });
 });
 
 // ─── POST /projects/:id/landscape — AI Landscape Design ──────────────────────

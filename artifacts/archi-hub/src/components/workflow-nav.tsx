@@ -18,7 +18,6 @@ const MISSIONS = [
   { path: "landscape", label: "Landscape Design" },
   { path: "sustainability", label: "Sustainability" },
   { path: "regulations", label: "Code & Regulations" },
-  { path: "visualization", label: "Visualization Studio" },
   { path: "presentation", label: "Final Presentation" },
   { path: "export", label: "Export Files" },
 ];

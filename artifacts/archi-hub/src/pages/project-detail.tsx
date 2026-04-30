@@ -30,7 +30,6 @@ import {
   Leaf,
   FileText,
   DollarSign,
-  Image as ImageIcon,
   Presentation,
   Download
 } from "lucide-react";
@@ -80,7 +79,6 @@ const PHASES = [
   {
     name: "Phase 6: Presentation",
     steps: [
-      { id: "visualization", label: "Visualization Studio", path: "visualization", icon: ImageIcon, requiredStatus: ProjectStatus.images_generated },
       { id: "presentation", label: "Final Presentation", path: "presentation", icon: Presentation, requiredStatus: ProjectStatus.images_generated },
       { id: "export", label: "Export Files", path: "export", icon: Download, requiredStatus: ProjectStatus.images_generated }
     ]
