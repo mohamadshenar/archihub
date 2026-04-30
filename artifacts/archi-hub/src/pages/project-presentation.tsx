@@ -108,63 +108,102 @@ function short(text: string | undefined, maxLen = 80): string {
   return firstSentence.length <= maxLen ? firstSentence : firstSentence.slice(0, maxLen) + "…";
 }
 
-/* ─── static OSM/CartoDB tile grid (replaces Leaflet, works with html2canvas) ── */
-function latLngToTile(lat: number, lng: number, zoom: number) {
-  const n = 2 ** zoom;
-  const x = Math.floor((lng + 180) / 360 * n);
-  const sinLat = Math.sin(lat * Math.PI / 180);
-  const y = Math.floor((1 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) / 2 * n);
-  const fx = (lng + 180) / 360 * n - x;
-  const fy = (1 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * n - y;
-  return { x, y, fx, fy };
-}
-
-function StaticMapTiles({ lat, lng, zoom = 16, height = 300 }: {
-  lat: number; lng: number; zoom?: number; height?: number;
+/* ─── procedural SVG city-grid map (no external tiles, renders instantly everywhere) ── */
+function CityMapBackground({ lat, lng, width = 800, height = 300 }: {
+  lat: number; lng: number; width?: number; height?: number;
 }) {
-  const TILE = 256;
-  const COLS = 7;
-  const ROWS = 5;
-  const { x: tx, y: ty, fx, fy } = latLngToTile(lat, lng, zoom);
-  const startX = tx - Math.floor(COLS / 2);
-  const startY = ty - Math.floor(ROWS / 2);
-  const offsetX = -fx * TILE + (TILE * Math.floor(COLS / 2));
-  const offsetY = -fy * TILE + (TILE * Math.floor(ROWS / 2));
-  const subs = ["a", "b", "c", "d"];
+  /* seed a simple pseudo-random from lat/lng so streets are deterministic */
+  const seed = Math.abs(Math.round(lat * 1000 + lng * 1000)) % 9999;
+  const rng = (s: number) => { let x = Math.sin(s + seed) * 43758; return x - Math.floor(x); };
+
+  /* major grid — arterial roads */
+  const majorX: number[] = [];
+  const majorY: number[] = [];
+  for (let i = 0; i <= 8; i++) majorX.push(Math.round(width * (0.06 + rng(i * 7) * 0.88)));
+  for (let i = 0; i <= 5; i++) majorY.push(Math.round(height * (0.07 + rng(i * 11 + 40) * 0.86)));
+  majorX.sort((a, b) => a - b);
+  majorY.sort((a, b) => a - b);
+
+  /* minor grid — local streets (denser) */
+  const minorX: number[] = [];
+  const minorY: number[] = [];
+  for (let i = 0; i < 20; i++) minorX.push(Math.round(width * rng(i * 3 + 100)));
+  for (let i = 0; i < 12; i++) minorY.push(Math.round(height * rng(i * 5 + 200)));
+
+  /* diagonal connector roads */
+  const diagonals: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  for (let i = 0; i < 4; i++) {
+    diagonals.push({
+      x1: Math.round(width * rng(i * 9 + 300)),
+      y1: Math.round(height * rng(i * 7 + 310)),
+      x2: Math.round(width * rng(i * 11 + 320)),
+      y2: Math.round(height * rng(i * 13 + 330)),
+    });
+  }
+
+  /* random blocks / parcels — filled rectangles */
+  const blocks: { x: number; y: number; w: number; h: number; op: number }[] = [];
+  for (let i = 0; i < 28; i++) {
+    blocks.push({
+      x: Math.round(width * rng(i * 4 + 400)),
+      y: Math.round(height * rng(i * 6 + 410)),
+      w: Math.round(20 + rng(i * 8 + 420) * 55),
+      h: Math.round(12 + rng(i * 2 + 430) * 38),
+      op: 0.12 + rng(i + 440) * 0.14,
+    });
+  }
+
   return (
-    <div style={{
-      position: "absolute", inset: 0,
-      filter: "brightness(0.55) sepia(0.55) saturate(2.8) hue-rotate(5deg) contrast(1.3)",
-      overflow: "hidden", height,
-    }}>
-      <div style={{
-        position: "absolute",
-        top: `calc(50% - ${TILE * ROWS / 2}px + ${offsetY}px)`,
-        left: `calc(50% - ${TILE * COLS / 2}px + ${offsetX}px)`,
-        display: "grid",
-        gridTemplateColumns: `repeat(${COLS}, ${TILE}px)`,
-        gridTemplateRows: `repeat(${ROWS}, ${TILE}px)`,
-        width: TILE * COLS,
-        height: TILE * ROWS,
-      }}>
-        {Array.from({ length: ROWS }, (_, r) =>
-          Array.from({ length: COLS }, (_, c) => {
-            const s = subs[(startX + c + startY + r) % subs.length];
-            return (
-              <img
-                key={`${r}-${c}`}
-                src={`https://${s}.basemaps.cartocdn.com/dark_all/${zoom}/${startX + c}/${startY + r}.png`}
-                crossOrigin="anonymous"
-                width={TILE}
-                height={TILE}
-                style={{ display: "block" }}
-                alt=""
-              />
-            );
-          })
-        )}
-      </div>
-    </div>
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width="100%" height="100%"
+      style={{ position: "absolute", inset: 0 }}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* dark background */}
+      <rect width={width} height={height} fill="#08090e" />
+
+      {/* city blocks */}
+      {blocks.map((b, i) => (
+        <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h}
+          fill={`rgba(180,140,60,${b.op})`} rx="1" />
+      ))}
+
+      {/* minor local streets */}
+      {minorX.map((x, i) => (
+        <line key={`mx${i}`} x1={x} y1={0} x2={x} y2={height}
+          stroke="rgba(200,160,70,0.12)" strokeWidth="0.6" />
+      ))}
+      {minorY.map((y, i) => (
+        <line key={`my${i}`} x1={0} y1={y} x2={width} y2={y}
+          stroke="rgba(200,160,70,0.12)" strokeWidth="0.6" />
+      ))}
+
+      {/* diagonal connectors */}
+      {diagonals.map((d, i) => (
+        <line key={`d${i}`} x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2}
+          stroke="rgba(220,170,80,0.18)" strokeWidth="1.2" />
+      ))}
+
+      {/* major arterial roads */}
+      {majorX.map((x, i) => (
+        <line key={`ax${i}`} x1={x} y1={0} x2={x} y2={height}
+          stroke="rgba(210,165,65,0.45)" strokeWidth={i % 3 === 0 ? "2.2" : "1.3"} />
+      ))}
+      {majorY.map((y, i) => (
+        <line key={`ay${i}`} x1={0} y1={y} x2={width} y2={y}
+          stroke="rgba(210,165,65,0.45)" strokeWidth={i % 2 === 0 ? "2.0" : "1.2"} />
+      ))}
+
+      {/* subtle vignette */}
+      <defs>
+        <radialGradient id="vignette" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor="transparent" />
+          <stop offset="100%" stopColor="rgba(5,6,10,0.72)" />
+        </radialGradient>
+      </defs>
+      <rect width={width} height={height} fill="url(#vignette)" />
+    </svg>
   );
 }
 
@@ -226,8 +265,8 @@ function SiteAnalysisDiagram({ siteAn, latitude, longitude }: {
   return (
     <div style={{ position: "relative", width: "100%", height: 300, overflow: "hidden" }}>
 
-      {/* ── Static CartoDB Dark tiles (img-based, works on screen + in html2canvas PDF) ── */}
-      <StaticMapTiles lat={lat} lng={lng} zoom={16} height={300} />
+      {/* ── Procedural city-grid SVG (no external tiles, renders instantly, captured by html2canvas) ── */}
+      <CityMapBackground lat={lat} lng={lng} height={300} />
 
       {/* ── Subtle vignette to ground the overlay ── */}
       <div style={{
@@ -361,11 +400,12 @@ export default function ProjectPresentation() {
     setExporting(true);
     try {
       const canvas = await html2canvas(el, {
-        useCORS: true,
         allowTaint: true,
+        useCORS: false,
         scale: 2,
         backgroundColor: "#0b0b0f",
         logging: false,
+        imageTimeout: 15000,
       });
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const landscape = canvas.width > canvas.height;
