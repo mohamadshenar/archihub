@@ -4,6 +4,16 @@ import { Download, Printer, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
 import { useState, useEffect } from "react";
+import { MapContainer, TileLayer } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+/* fix leaflet default icon paths */
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -131,26 +141,25 @@ const COMPASS_DEG: Record<string, number> = {
 function SiteAnalysisDiagram({ siteAn, latitude, longitude }: {
   siteAn?: SiteAnalysis; latitude?: number; longitude?: number;
 }) {
+  const lat = latitude ?? 31.9645;
+  const lng = longitude ?? 35.9105;
+
   const windLabel = parseWindLabel(siteAn?.windDirection ?? "");
   const windDeg   = COMPASS_DEG[windLabel] ?? 315;
   const windRad   = (windDeg * Math.PI) / 180;
 
-  /* direction FROM which wind comes (SVG coords: x=E, y=S) */
   const fromDx =  Math.sin(windRad);
   const fromDy = -Math.cos(windRad);
-
-  /* arrows travel in opposite direction */
   const toDx = -fromDx;
   const toDy = -fromDy;
-
-  /* perpendicular for spacing parallel arrows */
   const perpDx = -fromDy;
   const perpDy =  fromDx;
 
-  const SITE_CX = 400; const SITE_CY = 162;
-  const BASE_DIST = 190; const ARROW_LEN = 100; const SPREAD = 38;
-  const baseX = SITE_CX + fromDx * BASE_DIST;
-  const baseY = SITE_CY + fromDy * BASE_DIST;
+  /* SVG viewBox 800×300 — site at dead centre (400, 150) */
+  const SX = 400; const SY = 150;
+  const BASE_DIST = 185; const ARROW_LEN = 95; const SPREAD = 36;
+  const baseX = SX + fromDx * BASE_DIST;
+  const baseY = SY + fromDy * BASE_DIST;
 
   const windArrows = [-1.4, -0.45, 0.45, 1.4].map(t => ({
     x1: Math.round(baseX + perpDx * t * SPREAD),
@@ -159,137 +168,106 @@ function SiteAnalysisDiagram({ siteAn, latitude, longitude }: {
     y2: Math.round(baseY + perpDy * t * SPREAD + toDy * ARROW_LEN),
   }));
 
-  /* wind label anchor position */
   const windLabelX = Math.round(baseX + fromDx * 28);
   const windLabelY = Math.round(baseY + fromDy * 28);
 
   return (
-    <svg viewBox="0 0 800 320" width="100%" height="100%" style={{ display: "block", minHeight: 240 }}>
-      <defs>
-        <pattern id="ps-grid" width="28" height="28" patternUnits="userSpaceOnUse">
-          <path d="M28 0L0 0 0 28" fill="none" stroke="rgba(255,255,255,0.022)" strokeWidth="0.5"/>
-        </pattern>
-        <marker id="ps-wind" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-          <path d="M0,0 L7,3.5 L0,7 Z" fill="rgba(56,189,248,0.9)"/>
-        </marker>
-        <marker id="ps-sun-s" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z" fill="rgba(251,191,36,0.55)"/>
-        </marker>
-        <filter id="ps-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="5" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="ps-glow-sm" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2.5" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
+    <div style={{ position: "relative", width: "100%", height: 300, overflow: "hidden" }}>
 
-      {/* BG */}
-      <rect width="800" height="320" fill="#07090e"/>
-      <rect width="800" height="320" fill="url(#ps-grid)"/>
+      {/* ── Real OpenStreetMap tiles ── */}
+      <MapContainer
+        center={[lat, lng]}
+        zoom={16}
+        zoomControl={false}
+        dragging={false}
+        scrollWheelZoom={false}
+        doubleClickZoom={false}
+        touchZoom={false}
+        keyboard={false}
+        attributionControl={false}
+        style={{ height: "100%", width: "100%", zIndex: 1 }}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      </MapContainer>
 
-      {/* ── Urban fabric — figure-ground ── */}
-      {/* NW quad */}
-      {[[8,8,88,50],[108,12,70,44],[190,8,66,48]].map(([x,y,w,h],i)=><rect key={`nw${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.055)"/>)}
-      {/* NE quad */}
-      {[[526,10,94,52],[632,8,82,46],[726,12,66,42]].map(([x,y,w,h],i)=><rect key={`ne${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.055)"/>)}
-      {/* W side */}
-      {[[8,88,78,68],[98,92,62,58],[172,86,88,70],[10,176,80,62],[102,170,68,68],[184,178,82,58]].map(([x,y,w,h],i)=><rect key={`w${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
-      {/* E side */}
-      {[[526,85,84,64],[622,82,90,70],[724,88,68,58],[530,168,78,68],[624,165,88,72],[724,176,68,58]].map(([x,y,w,h],i)=><rect key={`e${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
-      {/* SW quad */}
-      {[[10,258,90,52],[114,254,82,58],[208,260,62,48]].map(([x,y,w,h],i)=><rect key={`sw${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
-      {/* SE quad */}
-      {[[526,255,100,54],[640,258,82,50],[734,254,58,58]].map(([x,y,w,h],i)=><rect key={`se${i}`} x={x} y={y} width={w} height={h} rx="2" fill="rgba(255,255,255,0.05)"/>)}
+      {/* ── Dark tint (match site-selection page) ── */}
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        background: "rgba(7,9,14,0.52)", mixBlendMode: "multiply", zIndex: 400,
+      }} />
 
-      {/* ── Streets ── */}
-      <line x1="0" y1="74" x2="800" y2="74" stroke="rgba(255,255,255,0.06)" strokeWidth="10"/>
-      <line x1="0" y1="250" x2="800" y2="250" stroke="rgba(255,255,255,0.06)" strokeWidth="10"/>
-      <line x1="274" y1="0" x2="274" y2="320" stroke="rgba(255,255,255,0.06)" strokeWidth="9"/>
-      <line x1="526" y1="0" x2="526" y2="320" stroke="rgba(255,255,255,0.05)" strokeWidth="7"/>
-      {/* street centre dashes */}
-      <line x1="0" y1="74" x2="800" y2="74" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" strokeDasharray="10,14"/>
-      <line x1="0" y1="250" x2="800" y2="250" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" strokeDasharray="10,14"/>
+      {/* ── Analysis SVG overlay ── */}
+      <svg viewBox="0 0 800 300"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 500, pointerEvents: "none" }}>
+        <defs>
+          <marker id="ps-wind" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 Z" fill="rgba(56,189,248,0.9)"/>
+          </marker>
+          <filter id="ps-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
 
-      {/* ── Summer sun path arc: ENE→WNW curving through south ── */}
-      {/* rises ENE ≈ (700,42), sets WNW ≈ (100,42), south peak at (400,320) */}
-      <path d="M 700 42 C 700 330 100 330 100 42"
-        fill="none" stroke="rgba(251,191,36,0.4)" strokeWidth="2" strokeDasharray="9,5"/>
-      {/* winter sun path */}
-      <path d="M 640 70 C 640 290 160 290 160 70"
-        fill="none" stroke="rgba(251,191,36,0.2)" strokeWidth="1.2" strokeDasharray="5,5"/>
+        {/* ── Summer sun arc: rises ENE (right), sets WNW (left), peaks south (bottom) ── */}
+        <path d="M 710 32 C 710 370 90 370 90 32"
+          fill="none" stroke="rgba(251,191,36,0.5)" strokeWidth="2" strokeDasharray="9,5"/>
+        {/* Winter arc — lower, shorter */}
+        <path d="M 650 58 C 650 310 150 310 150 58"
+          fill="none" stroke="rgba(251,191,36,0.22)" strokeWidth="1.4" strokeDasharray="5,5"/>
 
-      {/* summer sun symbol — rise (ENE) */}
-      <circle cx="700" cy="42" r="16" fill="rgba(251,191,36,0.13)" stroke="rgba(251,191,36,0.75)" strokeWidth="1.5" filter="url(#ps-glow)"/>
-      <text x="700" y="48" textAnchor="middle" fill="rgba(251,191,36,1)" fontSize="13" fontFamily="sans-serif">☀</text>
-      {/* summer sun label */}
-      <text x="710" y="24" textAnchor="middle" fill="rgba(251,191,36,0.75)" fontSize="6.5" fontFamily="monospace" fontWeight="bold">SUMMER SUN</text>
+        {/* Summer sun icon */}
+        <circle cx="710" cy="32" r="14" fill="rgba(251,191,36,0.14)" stroke="rgba(251,191,36,0.8)" strokeWidth="1.5" filter="url(#ps-glow)"/>
+        <text x="710" y="37" textAnchor="middle" fill="rgba(251,191,36,1)" fontSize="11" fontFamily="sans-serif">☀</text>
+        <text x="710" y="20" textAnchor="middle" fill="rgba(251,191,36,0.72)" fontSize="6" fontFamily="monospace" fontWeight="bold">SUMMER SUN</text>
 
-      {/* winter sun symbol — set (WSW) */}
-      <circle cx="160" cy="70" r="10" fill="rgba(251,191,36,0.07)" stroke="rgba(251,191,36,0.38)" strokeWidth="1"/>
-      <text x="160" y="74" textAnchor="middle" fill="rgba(251,191,36,0.55)" fontSize="9" fontFamily="sans-serif">☀</text>
-      <text x="148" y="58" textAnchor="middle" fill="rgba(251,191,36,0.38)" fontSize="6" fontFamily="monospace">WINTER SUN</text>
+        {/* Winter sun icon */}
+        <circle cx="150" cy="58" r="9" fill="rgba(251,191,36,0.07)" stroke="rgba(251,191,36,0.38)" strokeWidth="1"/>
+        <text x="150" y="63" textAnchor="middle" fill="rgba(251,191,36,0.5)" fontSize="9" fontFamily="sans-serif">☀</text>
+        <text x="138" y="46" textAnchor="middle" fill="rgba(251,191,36,0.35)" fontSize="6" fontFamily="monospace">WINTER SUN</text>
 
-      {/* solar noon indicator — points south toward bottom */}
-      <line x1="400" y1="252" x2="400" y2="242" stroke="rgba(251,191,36,0.25)" strokeWidth="0.8" strokeDasharray="3,3"/>
+        {/* ── Site crosshair at centre ── */}
+        <circle cx={SX} cy={SY} r="20" fill="rgba(217,119,6,0.07)" stroke="rgba(217,119,6,0.75)" strokeWidth="1.8" strokeDasharray="7,4"/>
+        <line x1={SX - 26} y1={SY} x2={SX + 26} y2={SY} stroke="rgba(217,119,6,0.4)" strokeWidth="0.8"/>
+        <line x1={SX} y1={SY - 26} x2={SX} y2={SY + 26} stroke="rgba(217,119,6,0.4)" strokeWidth="0.8"/>
+        <text x={SX} y={SY + 38} textAnchor="middle" fill="rgba(217,119,6,0.9)" fontSize="8" fontFamily="monospace" fontWeight="bold" letterSpacing="2">SITE</text>
 
-      {/* ── Wind arrows ── */}
-      {windArrows.map((a, i) => (
-        <line key={i} x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2}
-          stroke="rgba(56,189,248,0.78)" strokeWidth="1.8" markerEnd="url(#ps-wind)"/>
-      ))}
-      {/* wind source label */}
-      <text x={windLabelX} y={windLabelY - 8} textAnchor="middle"
-        fill="rgba(56,189,248,0.65)" fontSize="6.5" fontFamily="monospace">PREVAILING WIND</text>
-      <text x={windLabelX} y={windLabelY} textAnchor="middle"
-        fill="rgba(56,189,248,0.88)" fontSize="8" fontFamily="monospace" fontWeight="bold">{windLabel}</text>
+        {/* ── Wind arrows ── */}
+        {windArrows.map((a, i) => (
+          <line key={i} x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2}
+            stroke="rgba(56,189,248,0.82)" strokeWidth="1.8" markerEnd="url(#ps-wind)"/>
+        ))}
+        <text x={windLabelX} y={windLabelY - 9} textAnchor="middle"
+          fill="rgba(56,189,248,0.62)" fontSize="6" fontFamily="monospace">PREVAILING WIND</text>
+        <text x={windLabelX} y={windLabelY} textAnchor="middle"
+          fill="rgba(56,189,248,0.92)" fontSize="8" fontFamily="monospace" fontWeight="bold">{windLabel}</text>
 
-      {/* ── Site boundary ── */}
-      <rect x="274" y="78" width="252" height="172"
-        fill="rgba(217,119,6,0.04)" stroke="rgba(217,119,6,0.65)"
-        strokeWidth="1.8" strokeDasharray="10,5" rx="2"/>
-      {/* crosshairs */}
-      <line x1="400" y1="76" x2="400" y2="252" stroke="rgba(217,119,6,0.18)" strokeWidth="0.6" strokeDasharray="4,5"/>
-      <line x1="272" y1="164" x2="528" y2="164" stroke="rgba(217,119,6,0.18)" strokeWidth="0.6" strokeDasharray="4,5"/>
-      {/* site label */}
-      <text x="400" y="168" textAnchor="middle" fill="rgba(217,119,6,0.85)" fontSize="9" fontFamily="monospace" fontWeight="bold" letterSpacing="2">SITE</text>
+        {/* ── Compass rose ── */}
+        <g transform="translate(768, 36)">
+          <circle cx="0" cy="0" r="13" fill="rgba(0,0,0,0.6)" stroke="rgba(255,255,255,0.18)" strokeWidth="0.8"/>
+          <polygon points="0,-16 -4,-5 4,-5" fill="rgba(255,255,255,0.75)"/>
+          <polygon points="0,16 -4,5 4,5" fill="rgba(255,255,255,0.22)"/>
+          <text x="0" y="-20" textAnchor="middle" fill="rgba(255,255,255,0.52)" fontSize="7" fontFamily="monospace">N</text>
+        </g>
 
-      {/* ── Compass rose ── */}
-      <g transform="translate(762, 38)">
-        <circle cx="0" cy="0" r="13" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8"/>
-        <polygon points="0,-16 -4,-5 4,-5" fill="rgba(255,255,255,0.7)"/>
-        <polygon points="0,16 -4,5 4,5" fill="rgba(255,255,255,0.25)"/>
-        <text x="0" y="-20" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="7" fontFamily="monospace">N</text>
-      </g>
+        {/* ── Legend ── */}
+        <g transform="translate(6, 272)">
+          <line x1="0" y1="0" x2="16" y2="0" stroke="rgba(251,191,36,0.7)" strokeWidth="1.5" strokeDasharray="5,2"/>
+          <text x="20" y="4" fill="rgba(251,191,36,0.62)" fontSize="6" fontFamily="monospace">Sun path (Summer / Winter)</text>
+          <line x1="0" y1="12" x2="14" y2="12" stroke="rgba(56,189,248,0.7)" strokeWidth="1.5" markerEnd="url(#ps-wind)"/>
+          <text x="20" y="16" fill="rgba(56,189,248,0.62)" fontSize="6" fontFamily="monospace">Prevailing wind direction</text>
+          <circle cx="7" cy="24" r="5" fill="none" stroke="rgba(217,119,6,0.65)" strokeWidth="1" strokeDasharray="3,2"/>
+          <text x="20" y="28" fill="rgba(217,119,6,0.62)" fontSize="6" fontFamily="monospace">Site location</text>
+        </g>
 
-      {/* ── Scale bar ── */}
-      <g transform="translate(682, 306)">
-        <line x1="0" y1="0" x2="80" y2="0" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/>
-        <line x1="0" y1="-4" x2="0" y2="4" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/>
-        <line x1="40" y1="-2" x2="40" y2="2" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8"/>
-        <line x1="80" y1="-4" x2="80" y2="4" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/>
-        <text x="40" y="-6" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="6" fontFamily="monospace">50m</text>
-      </g>
-
-      {/* ── Coordinates ── */}
-      {(latitude && longitude) && (
-        <text x="6" y="314" fill="rgba(255,255,255,0.2)" fontSize="6.5" fontFamily="monospace">
-          {latitude.toFixed(4)}°N  {longitude.toFixed(4)}°E
-        </text>
-      )}
-
-      {/* ── Legend ── */}
-      <g transform="translate(6, 292)">
-        <line x1="0" y1="0" x2="16" y2="0" stroke="rgba(251,191,36,0.7)" strokeWidth="1.5" strokeDasharray="5,2"/>
-        <circle cx="8" cy="-5" r="3" fill="none" stroke="rgba(251,191,36,0.7)" strokeWidth="0.8"/>
-        <text x="19" y="4" fill="rgba(251,191,36,0.6)" fontSize="6" fontFamily="monospace">Sun path (Summer / Winter)</text>
-        <line x1="0" y1="12" x2="14" y2="12" stroke="rgba(56,189,248,0.7)" strokeWidth="1.5" markerEnd="url(#ps-wind)"/>
-        <text x="19" y="16" fill="rgba(56,189,248,0.6)" fontSize="6" fontFamily="monospace">Prevailing wind direction</text>
-        <rect x="0" y="21" width="14" height="8" fill="none" stroke="rgba(217,119,6,0.65)" strokeWidth="1" strokeDasharray="4,2"/>
-        <text x="19" y="28" fill="rgba(217,119,6,0.6)" fontSize="6" fontFamily="monospace">Site boundary</text>
-      </g>
-    </svg>
+        {/* ── Coordinates ── */}
+        {(latitude && longitude) && (
+          <text x="6" y="297" fill="rgba(255,255,255,0.22)" fontSize="6" fontFamily="monospace">
+            {lat.toFixed(4)}°N  {lng.toFixed(4)}°E
+          </text>
+        )}
+      </svg>
+    </div>
   );
 }
 
