@@ -1158,14 +1158,13 @@ router.post("/projects/:id/interior", async (req, res) => {
   const excludedStyles = ALL_STYLES.filter(s => !selectedStyles.includes(s));
 
   const selectedStyle = (req.body as Record<string, unknown>).selectedStyle as string | undefined ?? "Contemporary";
-  const spaces = ["lobby", "workspace", "exhibition", "cafe"];
 
   const completion = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_completion_tokens: 3000,
+    max_completion_tokens: 2000,
     messages: [
       { role: "system", content: "You are a specialist interior architect. Return ONLY valid JSON, no markdown. Follow style preferences strictly." },
-      { role: "user", content: `Generate a complete interior design specification for a ${project.projectType} building.
+      { role: "user", content: `Generate an interior design specification for the lobby of a ${project.projectType} building.
 
 Project: ${project.name}
 Selected Interior Style: "${selectedStyle}"
@@ -1176,7 +1175,7 @@ CLIENT STYLE PREFERENCES:
 SELECTED: ${selectedStyles.length > 0 ? selectedStyles.join(", ") : "Contemporary"}
 EXCLUDED: ${excludedStyles.length > 0 ? excludedStyles.join(", ") : "None"}
 
-Generate specifications for 4 spaces. Return JSON:
+Return JSON:
 {
   "selectedStyle": "${selectedStyle}",
   "styleDescription": "...",
@@ -1192,10 +1191,7 @@ Generate specifications for 4 spaces. Return JSON:
       "seating": "...",
       "acoustics": "...",
       "keyFeature": "..."
-    },
-    "workspace": { "lightingMood": "...", "lightingTemp": "...", "primaryFinish": "...", "secondaryFinish": "...", "flooringMaterial": "...", "ceilingTreatment": "...", "seating": "...", "acoustics": "...", "keyFeature": "..." },
-    "exhibition": { "lightingMood": "...", "lightingTemp": "...", "primaryFinish": "...", "secondaryFinish": "...", "flooringMaterial": "...", "ceilingTreatment": "...", "seating": "...", "acoustics": "...", "keyFeature": "..." },
-    "cafe": { "lightingMood": "...", "lightingTemp": "...", "primaryFinish": "...", "secondaryFinish": "...", "flooringMaterial": "...", "ceilingTreatment": "...", "seating": "...", "acoustics": "...", "keyFeature": "..." }
+    }
   },
   "materialPalette": [
     { "name": "...", "role": "primary", "description": "..." },
@@ -1250,22 +1246,15 @@ router.post("/projects/:id/interior/visualize", async (req, res) => {
   const styleDesc2 = styleDesc ? ` ${styleDesc}` : "";
   const paletteStr = palette.length > 0 ? ` Colour palette: ${palette.join(", ")}.` : "";
 
-  const spacePrompts: Record<string, string> = {
-    lobby:      `Professional architectural interior photograph of a building entrance lobby, ${selectedStyle} style.${styleDesc2}${paletteStr} Dramatic entry space, reception desk, high ceiling with statement lighting fixture, polished floor. No people. Photorealistic, ultra-detailed, architectural photography, natural and artificial lighting, 8K quality.`,
-    workspace:  `Professional architectural interior photograph of a modern open office workspace, ${selectedStyle} style.${styleDesc2}${paletteStr} Collaborative work areas, task lighting, ergonomic furniture, large windows with natural light. No people. Photorealistic, ultra-detailed, architectural photography, 8K quality.`,
-    exhibition: `Professional architectural interior photograph of a contemporary art exhibition gallery, ${selectedStyle} style.${styleDesc2}${paletteStr} Clean gallery walls, track lighting highlighting artwork, polished concrete floor, dramatic ceiling. No people. Photorealistic, ultra-detailed, architectural photography, 8K quality.`,
-    cafe:       `Professional architectural interior photograph of a café and dining space inside a building, ${selectedStyle} style.${styleDesc2}${paletteStr} Casual seating, warm pendant lighting, barista counter, natural materials. No people. Photorealistic, ultra-detailed, architectural photography, 8K quality.`,
-  };
+  const lobbyPrompt = `Professional architectural interior photograph of a building entrance lobby, ${selectedStyle} style.${styleDesc2}${paletteStr} Dramatic entry space, reception desk, high ceiling with statement lighting fixture, polished floor. No people. Photorealistic, ultra-detailed, architectural photography, natural and artificial lighting, 8K quality.`;
 
-  // Generate all 4 images in parallel
-  const spaces = ["lobby", "workspace", "exhibition", "cafe"] as const;
-  const results = await Promise.allSettled(
-    spaces.map(async (space) => {
-      const buffer = await generateImageBuffer(spacePrompts[space], "1024x1024");
-      const base64 = buffer.toString("base64");
-      return { space, dataUrl: `data:image/png;base64,${base64}` };
-    })
-  );
+  // Generate lobby image
+  const results = await Promise.allSettled([
+    generateImageBuffer(lobbyPrompt, "1024x1024").then(buffer => ({
+      space: "lobby",
+      dataUrl: `data:image/png;base64,${buffer.toString("base64")}`,
+    })),
+  ]);
 
   const images: Record<string, string> = {};
   for (const r of results) {
@@ -1307,40 +1296,42 @@ router.post("/projects/:id/landscape", async (req, res) => {
     model: "gpt-5.2",
     max_completion_tokens: 2500,
     messages: [
-      { role: "system", content: "You are a specialist landscape architect and site designer. Return ONLY valid JSON, no markdown." },
-      { role: "user", content: `Generate a comprehensive landscape design specification for a ${project.projectType} building.
+      { role: "system", content: "You are a specialist landscape architect. Return ONLY valid JSON, no markdown. Keep every text field to ONE concise sentence (under 15 words) except designPhilosophy (2-3 sentences max). No bullet points. No lists in text fields." },
+      { role: "user", content: `Generate a landscape design specification for a ${project.projectType} building.
 
 Project: ${project.name}
 Design Concept: ${selectedConcept ? `"${selectedConcept.title}" — ${selectedConcept.narrative}` : "Not defined"}
 Concept Colour Palette: ${conceptPalette.length > 0 ? conceptPalette.join(", ") : "earthy naturals"}
-Client Style Preferences: ${selectedStyles.length > 0 ? selectedStyles.join(", ") : "Contemporary, Sustainable"}
+Style: ${selectedStyles.length > 0 ? selectedStyles.join(", ") : "Contemporary, Sustainable"}
 
-Return JSON:
+IMPORTANT: All text values must be SHORT — one sentence, 8–15 words only. designPhilosophy may be 2-3 sentences.
+
+Return JSON exactly:
 {
-  "designPhilosophy": "...",
+  "designPhilosophy": "2-3 sentence poetic description of the landscape concept.",
   "hardscape": {
-    "primaryPaving": "...",
-    "retainingElements": "...",
-    "boundaryTreatment": "...",
-    "entrySequence": "..."
+    "primaryPaving": "one sentence",
+    "retainingElements": "one sentence",
+    "boundaryTreatment": "one sentence",
+    "entrySequence": "one sentence"
   },
   "softscape": {
-    "plantingStrategy": "...",
-    "featuredSpecies": ["species1", "species2", "species3", "species4"],
-    "groundCover": "...",
-    "treePlanting": "...",
-    "seasonalInterest": "..."
+    "plantingStrategy": "one sentence",
+    "featuredSpecies": ["Genus species", "Genus species", "Genus species", "Genus species"],
+    "groundCover": "one sentence",
+    "treePlanting": "one sentence",
+    "seasonalInterest": "one sentence"
   },
   "waterManagement": {
-    "strategy": "...",
-    "bioswales": "...",
-    "cisterns": "...",
-    "surfaceRunoff": "..."
+    "strategy": "one sentence",
+    "bioswales": "one sentence",
+    "cisterns": "one sentence",
+    "surfaceRunoff": "one sentence"
   },
   "lighting": {
-    "pathLighting": "...",
-    "accentLighting": "...",
-    "securityLighting": "..."
+    "pathLighting": "one sentence",
+    "accentLighting": "one sentence",
+    "securityLighting": "one sentence"
   },
   "performance": {
     "permeableArea": 60,
@@ -1348,9 +1339,9 @@ Return JSON:
     "biodiversityScore": 7,
     "stormwaterReduction": 80
   },
-  "sustainability": "...",
-  "maintenanceSchedule": "...",
-  "estimatedImplementationCost": "..."
+  "sustainability": "one sentence",
+  "maintenanceSchedule": "one sentence",
+  "estimatedImplementationCost": "one sentence"
 }` }
     ],
   });

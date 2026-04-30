@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trees, Download, Loader2, Droplets, Sun, Leaf, Lightbulb, BarChart2 } from "lucide-react";
+import { Trees, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
@@ -11,59 +10,35 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface LandscapeDesign {
   designPhilosophy: string;
-  hardscape: {
-    primaryPaving:     string;
-    retainingElements: string;
-    boundaryTreatment: string;
-    entrySequence:     string;
-  };
-  softscape: {
-    plantingStrategy: string;
-    featuredSpecies:  string[];
-    groundCover:      string;
-    treePlanting:     string;
-    seasonalInterest: string;
-  };
-  waterManagement: {
-    strategy:         string;
-    bioswales:        string;
-    cisterns:         string;
-    surfaceRunoff:     string;
-  };
-  lighting: {
-    pathLighting:     string;
-    accentLighting:   string;
-    securityLighting:  string;
-  };
-  performance: {
-    permeableArea:         number;
-    canopyCoverage10yr:    number;
-    biodiversityScore:     number;
-    stormwaterReduction:   number;
-  };
-  sustainability:               string;
-  maintenanceSchedule:          string;
-  estimatedImplementationCost:  string;
+  hardscape: { primaryPaving: string; retainingElements: string; boundaryTreatment: string; entrySequence: string };
+  softscape: { plantingStrategy: string; featuredSpecies: string[]; groundCover: string; treePlanting: string; seasonalInterest: string };
+  waterManagement: { strategy: string; bioswales: string; cisterns: string; surfaceRunoff: string };
+  lighting: { pathLighting: string; accentLighting: string; securityLighting: string };
+  performance: { permeableArea: number; canopyCoverage10yr: number; biodiversityScore: number; stormwaterReduction: number };
+  sustainability: string;
+  maintenanceSchedule: string;
+  estimatedImplementationCost: string;
   generatedAt?: string;
 }
 
-function MetricBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
+function Node({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
   return (
-    <div>
-      <div className="flex justify-between text-xs font-mono mb-1">
-        <span>{label}</span>
-        <span style={{ color }}>{value}{typeof value === "number" && value <= 100 ? "%" : ""}</span>
+    <div className="flex gap-3 items-start group">
+      <div className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 shrink-0" />
+      <div>
+        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mr-2">{label}</span>
+        <span className="text-sm text-foreground/80">{value}</span>
       </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ backgroundColor: color }}
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        />
-      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-primary/70">{title}</h3>
+      <div className="space-y-2 pl-1">{children}</div>
     </div>
   );
 }
@@ -96,7 +71,6 @@ export default function ProjectLandscape() {
     try {
       const storedLocal = localStorage.getItem(`project-${projectId}-selectedConceptIdx`);
       const selectedConceptIdx = storedLocal !== null ? parseInt(storedLocal) || 0 : 0;
-
       const res = await fetch(`${BASE}/api/projects/${projectId}/landscape`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,92 +79,69 @@ export default function ProjectLandscape() {
       if (!res.ok) throw new Error("Failed");
       const data = await res.json() as { landscape: LandscapeDesign };
       setLandscape(data.landscape);
-      toast({ title: "Landscape Design Generated", description: "Site integration and planting strategy ready." });
+      toast({ title: "Landscape Design Generated" });
     } catch {
-      toast({ title: "Generation Failed", description: "Could not generate landscape design. Try again.", variant: "destructive" });
+      toast({ title: "Generation Failed", variant: "destructive" });
     } finally {
       setGenerating(false);
     }
   };
 
   const handleExport = () => {
-    if (!landscape) {
-      toast({ title: "No Data", description: "Generate a landscape design first.", variant: "destructive" });
-      return;
-    }
+    if (!landscape) { toast({ title: "Generate first", variant: "destructive" }); return; }
     const lines = [
-      `LANDSCAPE DESIGN SPECIFICATION — PROJECT ${projectId}`,
-      `Generated: ${landscape.generatedAt ? new Date(landscape.generatedAt).toLocaleString() : "—"}`,
+      `LANDSCAPE SPECIFICATION — PROJECT ${projectId}`,
       ``,
-      `DESIGN PHILOSOPHY`,
       landscape.designPhilosophy,
       ``,
       `HARDSCAPE`,
-      `Primary Paving:      ${landscape.hardscape?.primaryPaving}`,
-      `Retaining Elements:  ${landscape.hardscape?.retainingElements}`,
-      `Boundary Treatment:  ${landscape.hardscape?.boundaryTreatment}`,
-      `Entry Sequence:      ${landscape.hardscape?.entrySequence}`,
+      `· ${landscape.hardscape?.primaryPaving}`,
+      `· ${landscape.hardscape?.retainingElements}`,
+      `· ${landscape.hardscape?.boundaryTreatment}`,
+      `· ${landscape.hardscape?.entrySequence}`,
       ``,
       `SOFTSCAPE`,
-      `Planting Strategy:   ${landscape.softscape?.plantingStrategy}`,
-      `Featured Species:    ${landscape.softscape?.featuredSpecies?.join(", ")}`,
-      `Ground Cover:        ${landscape.softscape?.groundCover}`,
-      `Tree Planting:       ${landscape.softscape?.treePlanting}`,
-      `Seasonal Interest:   ${landscape.softscape?.seasonalInterest}`,
+      `· ${landscape.softscape?.plantingStrategy}`,
+      `· Species: ${landscape.softscape?.featuredSpecies?.join(", ")}`,
+      `· ${landscape.softscape?.groundCover}`,
+      `· ${landscape.softscape?.treePlanting}`,
       ``,
-      `WATER MANAGEMENT`,
-      `Strategy:            ${landscape.waterManagement?.strategy}`,
-      `Bioswales:           ${landscape.waterManagement?.bioswales}`,
-      `Cisterns:            ${landscape.waterManagement?.cisterns}`,
-      `Surface Runoff:      ${landscape.waterManagement?.surfaceRunoff}`,
+      `WATER`,
+      `· ${landscape.waterManagement?.strategy}`,
+      `· ${landscape.waterManagement?.bioswales}`,
       ``,
       `LIGHTING`,
-      `Path Lighting:       ${landscape.lighting?.pathLighting}`,
-      `Accent Lighting:     ${landscape.lighting?.accentLighting}`,
-      `Security Lighting:   ${landscape.lighting?.securityLighting}`,
+      `· ${landscape.lighting?.pathLighting}`,
+      `· ${landscape.lighting?.accentLighting}`,
       ``,
-      `PERFORMANCE METRICS`,
-      `Permeable Area:      ${landscape.performance?.permeableArea}%`,
-      `Canopy Coverage:     ${landscape.performance?.canopyCoverage10yr}% (10yr projection)`,
-      `Biodiversity Score:  ${landscape.performance?.biodiversityScore}/10`,
-      `Stormwater Reduction:${landscape.performance?.stormwaterReduction}%`,
+      `PERFORMANCE`,
+      `· Permeable: ${landscape.performance?.permeableArea}%`,
+      `· Canopy (10yr): ${landscape.performance?.canopyCoverage10yr}%`,
+      `· Stormwater reduction: ${landscape.performance?.stormwaterReduction}%`,
       ``,
       `SUSTAINABILITY`,
       landscape.sustainability,
-      ``,
-      `MAINTENANCE`,
-      landscape.maintenanceSchedule,
-      ``,
-      `IMPLEMENTATION COST ESTIMATE`,
-      landscape.estimatedImplementationCost,
     ];
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = `landscape-spec-project-${projectId}.txt`; a.click();
+    a.href = url; a.download = `landscape-project-${projectId}.txt`; a.click();
     URL.revokeObjectURL(url);
   };
 
-  const perf = landscape?.performance;
-
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-6">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-8">
 
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Landscape Design</h1>
           <p className="text-sm text-muted-foreground font-mono">Site integration and exterior programming.</p>
-          {landscape?.generatedAt && (
-            <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5">
-              Generated {new Date(landscape.generatedAt).toLocaleString()}
-            </p>
-          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleExport} disabled={!landscape}>
             <Download className="w-4 h-4 mr-2" />
-            Export Spec
+            Export
           </Button>
           <Button onClick={handleGenerate} disabled={generating}>
             {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trees className="w-4 h-4 mr-2" />}
@@ -199,197 +150,89 @@ export default function ProjectLandscape() {
         </div>
       </div>
 
-      {/* Empty state */}
+      {/* Empty / loading */}
       {metaLoaded && !landscape && !generating && (
-        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border/50 rounded-xl">
-          <Trees className="w-10 h-10 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground mb-1">No landscape design generated yet.</p>
-          <p className="text-xs text-muted-foreground/60">Click Generate Design to create a site-specific landscape strategy.</p>
+        <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-border/40 rounded-xl">
+          <Trees className="w-8 h-8 text-muted-foreground/25 mb-3" />
+          <p className="text-sm text-muted-foreground">Click Generate Design to create your landscape strategy.</p>
         </div>
       )}
 
       {generating && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Loader2 className="w-10 h-10 text-primary/60 animate-spin mb-3" />
-          <p className="text-sm text-muted-foreground">AI is designing your landscape strategy…</p>
+        <div className="flex flex-col items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 text-primary/60 animate-spin mb-3" />
+          <p className="text-sm text-muted-foreground font-mono">Designing…</p>
         </div>
       )}
 
       {landscape && !generating && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
 
-          {/* Design philosophy */}
+          {/* Philosophy */}
           {landscape.designPhilosophy && (
-            <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-              <p className="text-[10px] font-mono text-primary uppercase tracking-widest mb-1.5">Design Philosophy</p>
-              <p className="text-sm text-foreground leading-relaxed">{landscape.designPhilosophy}</p>
-            </div>
+            <p className="text-base text-foreground/80 leading-relaxed border-l-2 border-primary/40 pl-4 italic">
+              {landscape.designPhilosophy}
+            </p>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left: Hardscape + Softscape */}
-            <div className="md:col-span-2 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="space-y-8">
+              <Section title="Hardscape">
+                <Node label="Paving"    value={landscape.hardscape?.primaryPaving} />
+                <Node label="Retaining" value={landscape.hardscape?.retainingElements} />
+                <Node label="Boundary"  value={landscape.hardscape?.boundaryTreatment} />
+                <Node label="Entry"     value={landscape.hardscape?.entrySequence} />
+              </Section>
 
-              {/* Hardscape */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <BarChart2 className="w-4 h-4 text-primary" />
-                    Hardscape
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {[
-                      { label: "Primary Paving",     value: landscape.hardscape?.primaryPaving },
-                      { label: "Retaining Elements", value: landscape.hardscape?.retainingElements },
-                      { label: "Boundary Treatment", value: landscape.hardscape?.boundaryTreatment },
-                      { label: "Entry Sequence",     value: landscape.hardscape?.entrySequence },
-                    ].map(r => (
-                      <div key={r.label} className="p-3 bg-muted/30 rounded-lg border border-border/50">
-                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1">{r.label}</p>
-                        <p className="text-xs text-foreground leading-relaxed">{r.value || "—"}</p>
-                      </div>
+              <Section title="Softscape">
+                <Node label="Strategy"  value={landscape.softscape?.plantingStrategy} />
+                <Node label="Ground"    value={landscape.softscape?.groundCover} />
+                <Node label="Trees"     value={landscape.softscape?.treePlanting} />
+                {landscape.softscape?.featuredSpecies?.length > 0 && (
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    {landscape.softscape.featuredSpecies.map((sp, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-mono">{sp}</span>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </Section>
 
-              {/* Softscape */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Leaf className="w-4 h-4 text-green-500" />
-                    Softscape & Planting
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {landscape.softscape?.plantingStrategy && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">{landscape.softscape.plantingStrategy}</p>
-                  )}
-                  {landscape.softscape?.featuredSpecies?.length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Featured Species</p>
-                      <div className="flex flex-wrap gap-2">
-                        {landscape.softscape.featuredSpecies.map((sp, i) => (
-                          <span key={i} className="px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-mono">
-                            {sp}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    {[
-                      { label: "Ground Cover",     value: landscape.softscape?.groundCover },
-                      { label: "Tree Planting",    value: landscape.softscape?.treePlanting },
-                      { label: "Seasonal Interest",value: landscape.softscape?.seasonalInterest },
-                    ].map(r => (
-                      <div key={r.label} className="p-3 bg-muted/30 rounded-lg border border-border/50">
-                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1">{r.label}</p>
-                        <p className="text-xs text-foreground leading-relaxed">{r.value || "—"}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Water + Lighting */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Droplets className="w-4 h-4 text-blue-400" />
-                      Water Management
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2.5">
-                    {[
-                      { label: "Strategy",       value: landscape.waterManagement?.strategy },
-                      { label: "Bioswales",      value: landscape.waterManagement?.bioswales },
-                      { label: "Cisterns",       value: landscape.waterManagement?.cisterns },
-                      { label: "Surface Runoff", value: landscape.waterManagement?.surfaceRunoff },
-                    ].map(r => (
-                      <div key={r.label}>
-                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-0.5">{r.label}</p>
-                        <p className="text-xs text-foreground leading-relaxed">{r.value || "—"}</p>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Sun className="w-4 h-4 text-amber-400" />
-                      Exterior Lighting
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2.5">
-                    {[
-                      { label: "Path Lighting",     value: landscape.lighting?.pathLighting },
-                      { label: "Accent Lighting",   value: landscape.lighting?.accentLighting },
-                      { label: "Security Lighting", value: landscape.lighting?.securityLighting },
-                    ].map(r => (
-                      <div key={r.label}>
-                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-0.5">{r.label}</p>
-                        <p className="text-xs text-foreground leading-relaxed">{r.value || "—"}</p>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
+              <Section title="Water">
+                <Node label="Strategy"  value={landscape.waterManagement?.strategy} />
+                <Node label="Bioswales" value={landscape.waterManagement?.bioswales} />
+              </Section>
             </div>
 
-            {/* Right: Performance metrics + sustainability + cost */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Performance Metrics</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {perf && (
-                    <>
-                      <MetricBar label="Permeable Area"        value={perf.permeableArea}       max={100} color="#22c55e" />
-                      <MetricBar label="Canopy Coverage (10yr)" value={perf.canopyCoverage10yr}  max={100} color="#f59e0b" />
-                      <MetricBar label="Biodiversity Score"    value={perf.biodiversityScore}    max={10}  color="#6366f1" />
-                      <MetricBar label="Stormwater Reduction"  value={perf.stormwaterReduction}  max={100} color="#38bdf8" />
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+            <div className="space-y-8">
+              <Section title="Lighting">
+                <Node label="Path"     value={landscape.lighting?.pathLighting} />
+                <Node label="Accent"   value={landscape.lighting?.accentLighting} />
+                <Node label="Security" value={landscape.lighting?.securityLighting} />
+              </Section>
+
+              <Section title="Performance">
+                {[
+                  { label: "Permeable area",    value: `${landscape.performance?.permeableArea}%`,      color: "#22c55e" },
+                  { label: "Canopy (10yr)",      value: `${landscape.performance?.canopyCoverage10yr}%`, color: "#f59e0b" },
+                  { label: "Stormwater reduction", value: `${landscape.performance?.stormwaterReduction}%`, color: "#38bdf8" },
+                ].map(m => (
+                  <div key={m.label} className="flex justify-between items-center text-xs font-mono border-b border-border/30 pb-1.5">
+                    <span className="text-muted-foreground">{m.label}</span>
+                    <span style={{ color: m.color }}>{m.value}</span>
+                  </div>
+                ))}
+              </Section>
 
               {landscape.sustainability && (
-                <Card className="bg-green-500/5 border-green-500/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Leaf className="w-4 h-4 text-green-500" />
-                      <h4 className="font-bold text-sm text-green-400">Sustainability</h4>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{landscape.sustainability}</p>
-                  </CardContent>
-                </Card>
+                <Section title="Sustainability">
+                  <p className="text-sm text-foreground/70 leading-relaxed">{landscape.sustainability}</p>
+                </Section>
               )}
 
               {landscape.maintenanceSchedule && (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Lightbulb className="w-4 h-4 text-primary" />
-                      <h4 className="font-bold text-sm">Maintenance</h4>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{landscape.maintenanceSchedule}</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {landscape.estimatedImplementationCost && (
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] font-mono text-primary uppercase tracking-widest mb-1">Cost Estimate</p>
-                    <p className="text-sm font-semibold text-foreground">{landscape.estimatedImplementationCost}</p>
-                  </CardContent>
-                </Card>
+                <Section title="Maintenance">
+                  <p className="text-sm text-foreground/70 leading-relaxed">{landscape.maintenanceSchedule}</p>
+                </Section>
               )}
             </div>
           </div>

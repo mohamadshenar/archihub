@@ -7,7 +7,6 @@ import { Sofa, Palette, Download, Loader2, CheckCircle2, Lightbulb, Layers, Spar
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { WorkflowNav } from "@/components/workflow-nav";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import imgMinimalistIndustrial from "@assets/stock_images/style-minimalist-industrial.jpg";
 import imgWarmBrutalism        from "@assets/stock_images/style-warm-brutalism.jpg";
@@ -58,21 +57,11 @@ const STYLE_OPTIONS = [
   { name: "Tropical Contemporary", desc: "Natural rattan, green foliage walls, terracotta and lush greenery.", colors: ["#fef3c7","#d4d4a0","#4ade80","#166534","#92400e"], img: imgTropicalContemporary },
 ];
 
-const STYLE_IMG: Record<string, string> = Object.fromEntries(
-  STYLE_OPTIONS.map(s => [s.name, s.img])
-);
-
-const SPACE_LABELS: Record<string, string> = {
-  lobby: "Lobby", workspace: "Workspace", exhibition: "Exhibition", cafe: "Cafe",
-};
-
 function SpacePanel({
-  spec, imageUrl, styleImg, space, visualizing,
+  spec, imageUrl, visualizing,
 }: {
   spec: SpaceSpec;
   imageUrl?: string;
-  styleImg?: string;
-  space: string;
   visualizing?: boolean;
 }) {
   const rows = [
@@ -86,21 +75,18 @@ function SpacePanel({
     { label: "Acoustics",          value: spec.acoustics },
   ];
 
-  // Priority: AI-generated per-space image → saved spec imageUrl → style reference photo
-  const aiImg   = imageUrl ?? spec.imageUrl;
-  const refImg  = styleImg;
-  const caption = aiImg ? `AI Visualisation · ${SPACE_LABELS[space]}` : `Style Reference · ${SPACE_LABELS[space]}`;
+  const aiImg = imageUrl ?? spec.imageUrl;
 
   return (
     <div className="space-y-5">
       {spec.keyFeature && (
         <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-          <p className="text-[10px] font-mono text-primary uppercase tracking-widest mb-1">Key Feature — {SPACE_LABELS[space]}</p>
+          <p className="text-[10px] font-mono text-primary uppercase tracking-widest mb-1">Key Feature — Lobby</p>
           <p className="text-sm text-foreground leading-relaxed">{spec.keyFeature}</p>
         </div>
       )}
 
-      {/* Visual area — always shows something */}
+      {/* AI Visualisation area */}
       <AnimatePresence mode="wait">
         {visualizing ? (
           <motion.div
@@ -111,35 +97,39 @@ function SpacePanel({
             className="relative rounded-xl overflow-hidden border border-border/40 bg-muted/20 flex flex-col items-center justify-center gap-3"
             style={{ height: 300 }}
           >
-            {refImg && (
-              <img src={refImg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-            )}
             <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-black/80" />
             <Loader2 className="w-8 h-8 text-primary animate-spin z-10" />
             <p className="text-xs text-muted-foreground/80 font-mono z-10">Generating AI visualisation…</p>
           </motion.div>
-        ) : (aiImg || refImg) ? (
+        ) : aiImg ? (
           <motion.div
-            key={aiImg ? "ai" : "ref"}
+            key="ai"
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
             className="relative rounded-xl overflow-hidden border border-border/40"
           >
             <img
-              src={aiImg ?? refImg}
-              alt={`${SPACE_LABELS[space]} interior`}
+              src={aiImg}
+              alt="Lobby interior visualisation"
               className="w-full object-cover"
-              style={{ maxHeight: 360 }}
+              style={{ maxHeight: 420 }}
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 to-transparent px-4 py-3 flex items-end justify-between">
-              <p className="text-white text-xs font-mono uppercase tracking-widest opacity-90">{caption}</p>
-              {!aiImg && (
-                <span className="text-[10px] font-mono text-white/50 uppercase tracking-wide">Style reference</span>
-              )}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 to-transparent px-4 py-3">
+              <p className="text-white text-xs font-mono uppercase tracking-widest opacity-90">AI Visualisation · Lobby</p>
             </div>
           </motion.div>
-        ) : null}
+        ) : (
+          <motion.div
+            key="placeholder"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-dashed border-border/50 bg-muted/10 flex flex-col items-center justify-center gap-2 py-16 text-center"
+          >
+            <Sparkles className="w-8 h-8 text-muted-foreground/30" />
+            <p className="text-xs text-muted-foreground/60 font-mono">Click Generate Interior to visualise this lobby</p>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -460,62 +450,26 @@ export default function ProjectInterior() {
         </motion.div>
       )}
 
-      {/* Space tabs */}
-      <Tabs defaultValue="lobby" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 rounded-none bg-muted/50 p-1">
-          {["lobby", "workspace", "exhibition", "cafe"].map(space => (
-            <TabsTrigger
-              key={space}
-              value={space}
-              className="rounded-none font-mono text-xs uppercase data-[state=active]:bg-background data-[state=active]:text-primary"
-            >
-              {SPACE_LABELS[space]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {["lobby", "workspace", "exhibition", "cafe"].map(space => {
-          const spec     = interior?.spaces?.[space as keyof typeof interior.spaces];
-          const styleImg = STYLE_IMG[selectedStyle];
-          return (
-            <TabsContent key={space} value={space} className="pt-6">
-              {spec ? (
-                <SpacePanel
-                  spec={spec}
-                  imageUrl={spaceImages[space]}
-                  styleImg={styleImg}
-                  space={space}
-                  visualizing={visualizing}
-                />
-              ) : (
-                /* No spec yet — show the style reference photo with an overlay prompt */
-                <div className="relative rounded-xl overflow-hidden border border-border/40">
-                  {styleImg ? (
-                    <>
-                      <img
-                        src={styleImg}
-                        alt={selectedStyle}
-                        className="w-full object-cover opacity-40"
-                        style={{ maxHeight: 320 }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20 flex flex-col items-center justify-end pb-10 text-center gap-2 px-6">
-                        <p className="text-sm font-semibold text-white">{selectedStyle} — Style Preview</p>
-                        <p className="text-xs text-white/60">Click Generate Interior to create your full specification with AI-generated visuals for each space.</p>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <Sofa className="w-8 h-8 text-muted-foreground/40 mb-3" />
-                      <p className="text-sm text-muted-foreground mb-1">No interior spec generated yet.</p>
-                      <p className="text-xs text-muted-foreground/60">Select a style above, then click Generate Interior.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </TabsContent>
-          );
-        })}
-      </Tabs>
+      {/* Lobby section */}
+      <div className="pt-2">
+        <div className="flex items-center gap-2 mb-4 border-b border-border/50 pb-3">
+          <Sofa className="w-4 h-4 text-primary" />
+          <span className="text-sm font-mono uppercase tracking-widest text-primary">Lobby</span>
+        </div>
+        {interior?.spaces?.lobby ? (
+          <SpacePanel
+            spec={interior.spaces.lobby}
+            imageUrl={spaceImages["lobby"]}
+            visualizing={visualizing}
+          />
+        ) : (
+          <div className="rounded-xl border border-dashed border-border/50 bg-muted/10 flex flex-col items-center justify-center gap-2 py-16 text-center">
+            <Sofa className="w-8 h-8 text-muted-foreground/40 mb-1" />
+            <p className="text-sm text-muted-foreground">No interior spec generated yet.</p>
+            <p className="text-xs text-muted-foreground/60">Select a style above, then click Generate Interior.</p>
+          </div>
+        )}
+      </div>
 
       {/* FF&E + Sustainability */}
       {interior && (
