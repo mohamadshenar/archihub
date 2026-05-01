@@ -35,4 +35,13 @@ app.use("/api/static", express.static(path.resolve(process.cwd(), "public")));
 
 app.use("/api", router);
 
+// In production, serve the built React frontend and fall back to index.html for client-side routing
+if (process.env.NODE_ENV === "production") {
+  const frontendDist = path.resolve(process.cwd(), "../archi-hub/dist/public");
+  app.use(express.static(frontendDist));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
+
 export default app;
